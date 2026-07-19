@@ -87,6 +87,10 @@ Project documentation is available in the `docs/` directory.
 | v0.5 | Multi-provider |
 | v1.0 | First stable release |
 
+v0.1 Prototype Streamlit Interface
+
+![alt text](streamlit/image.png)
+
 ---
 
 ## 📄 License
