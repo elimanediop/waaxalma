@@ -1,6 +1,9 @@
 import uuid
 
 from app.agents.base_agent import BaseAgent
+from app.core.agent_input import AgentInput
+from app.core.agent_result import AgentResult
+from app.core.session_context import SessionContext
 from app.core.config import STATIC_AUDIO_URL_PREFIX
 from app.providers.openai_provider import (
     OpenAITranslationProvider,
@@ -11,17 +14,98 @@ from app.skills.speech_skill import SpeechSkill
 
 
 class TranslationAgent(BaseAgent):
-    name = "translation-agent"
     description = "Agent that translates text and generates spoken audio."
 
-    def __init__(self):
+    def __init__(self) -> None:
         translation_provider = OpenAITranslationProvider()
         speech_provider = OpenAISpeechProvider()
 
         self.translation_skill = TranslationSkill(translation_provider)
         self.speech_skill = SpeechSkill(speech_provider)
 
-    def translate_text(self, text: str, target_language: str = "English") -> dict:
+    @property
+    def name(self) -> str:
+        return "translation"
+
+    async def execute(
+        self,
+        agent_input: AgentInput,
+        context: SessionContext,
+    ) -> AgentResult:
+        operation = agent_input.operation
+        payload = agent_input.payload
+
+        text = payload.get("text")
+
+        if not text:
+            return AgentResult(
+                success=False,
+                error_code="INVALID_INPUT",
+                error_message="'text' is required",
+                metadata={
+                    "agent": self.name,
+                    "operation": operation,
+                    "session_id": context.session_id,
+                },
+            )
+
+        if operation == "translate":
+            target_language = payload.get(
+                "target_language",
+                context.target_language,
+            )
+
+            output = self.translate_text(
+                text=text,
+                target_language=target_language,
+            )
+
+        elif operation == "speak":
+            output = self.speak_text(
+                text=text,
+            )
+
+        elif operation == "translate_and_speak":
+            target_language = payload.get(
+                "target_language",
+                context.target_language,
+            )
+
+            output = self.translate_and_speak(
+                text=text,
+                target_language=target_language,
+            )
+
+        else:
+            return AgentResult(
+                success=False,
+                error_code="UNSUPPORTED_OPERATION",
+                error_message=(
+                    f"Operation '{operation}' is not supported "
+                    f"by agent '{self.name}'"
+                ),
+                metadata={
+                    "agent": self.name,
+                    "operation": operation,
+                    "session_id": context.session_id,
+                },
+            )
+
+        return AgentResult(
+            success=True,
+            output=output,
+            metadata={
+                "agent": self.name,
+                "operation": operation,
+                "session_id": context.session_id,
+            },
+    )
+
+    def translate_text(
+        self,
+        text: str,
+        target_language: str = "English",
+    ) -> dict:
         request_id = str(uuid.uuid4())
 
         translated_text = self.translation_skill.execute(
@@ -38,7 +122,6 @@ class TranslationAgent(BaseAgent):
 
     def speak_text(self, text: str) -> dict:
         request_id = str(uuid.uuid4())
-
         output_filename = f"{request_id}.mp3"
 
         self.speech_skill.execute(
@@ -53,7 +136,11 @@ class TranslationAgent(BaseAgent):
             "audio_url": f"{STATIC_AUDIO_URL_PREFIX}/{output_filename}",
         }
 
-    def translate_and_speak(self, text: str, target_language: str = "English") -> dict:
+    def translate_and_speak(
+        self,
+        text: str,
+        target_language: str = "English",
+    ) -> dict:
         request_id = str(uuid.uuid4())
 
         translated_text = self.translation_skill.execute(
