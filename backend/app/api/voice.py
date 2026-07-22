@@ -2,6 +2,7 @@ import os
 import shutil
 import uuid
 
+from app.core.agent_execution_factory import AgentExecutionFactory
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.agents.agent_manager import agent_manager
@@ -57,24 +58,21 @@ async def interpret_voice(
 
             target_language = session.target_language
 
-        context = SessionContext(
-            session_id=session_id or request_id,
-            target_language=target_language,
-        )
-
-        agent_input = AgentInput(
+        execution = AgentExecutionFactory.create(
             operation="interpret_audio",
             payload={
                 "audio_path": input_path,
                 "target_language": target_language,
                 "session_id": session_id,
             },
+            session_id=session_id or request_id,
+            target_language=target_language,
         )
 
         result = await agent_orchestrator.execute(
             agent_name="interpreter",
-            agent_input=agent_input,
-            context=context,
+            agent_input=execution.agent_input,
+            context=execution.context,
         )
 
         if not result.success:

@@ -6,11 +6,13 @@ from pydantic import BaseModel, Field
 
 
 class SessionContext(BaseModel):
-    session_id: str = Field(default_factory=lambda: str(uuid4()))
+    session_id: str = Field(
+        default_factory=lambda: str(uuid4())
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
     source_language: str | None = None
-    target_language: str = "en"
+    target_language: str = "English"
     data: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
