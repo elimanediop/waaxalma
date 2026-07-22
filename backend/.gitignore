@@ -43,3 +43,5 @@ Thumbs.db
 # Helm packaged charts
 chart/*.tgz
 api/poetry.lock
+
+static/audio/

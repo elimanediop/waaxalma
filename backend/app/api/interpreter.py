@@ -1,3 +1,4 @@
+from app.core.agent_execution_factory import AgentExecutionFactory
 from fastapi import APIRouter, HTTPException
 
 from app.agents.agent_manager import agent_manager
@@ -40,23 +41,20 @@ async def interpret_text(
                 content=request.text,
             )
 
-        context = SessionContext(
-            session_id=session_id,
-            target_language=target_language,
-        )
-
-        agent_input = AgentInput(
-            operation="interpret",
+        execution = AgentExecutionFactory.create(
+            operation="translate",
             payload={
                 "text": request.text,
-                "target_language": target_language,
+                "target_language": request.target_language,
             },
+            session_id=request.session_id,
+            target_language=request.target_language,
         )
 
         result = await agent_orchestrator.execute(
             agent_name="interpreter",
-            agent_input=agent_input,
-            context=context,
+            agent_input=execution.agent_input,
+            context=execution.context,
         )
 
         if not result.success:
