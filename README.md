@@ -53,17 +53,7 @@ Provider Layer
 
 ## 🚀 Current Status
 
-**Prototype – v0.1**
-
-The current release validates the architectural foundations of Waaxalma, including:
-
-- AI Agent orchestration
-- Speech-to-Text
-- Translation
-- Text-to-Speech
-- Session management
-- Streamlit user interface
-
+**Agent Orchestration – v0.2.**
 ---
 
 ## 📚 Documentation
@@ -78,14 +68,15 @@ Project documentation is available in the `docs/` directory.
 
 ## 🗺️ Roadmap
 
-| Version | Goal |
-|----------|------|
-| v0.1 | Prototype |
-| v0.2 | Voice Pipeline |
-| v0.3 | Conversation Memory |
-| v0.4 | Streaming |
-| v0.5 | Multi-provider |
-| v1.0 | First stable release |
+| Repository Version | Milestone           | Focus                                                            |
+| ------------------ | ------------------- | ---------------------------------------------------------------- |
+| **v0.1.0**         | Prototype           | Voice → Translation → Speech proof of concept                    |
+| **v0.2.0**         | Agent Orchestration | Unified execution pipeline, AgentOrchestrator, SessionContext    |
+| **v0.3.0**         | Reliability         | Validation, retries, timeouts, tracing, metrics, resilience      |
+| **v0.4.0**         | Framework           | Specialized agents, provider abstraction, configurable pipelines |
+| **v0.5.0**         | Product Readiness   | Persistent sessions, security, packaging, CI/CD, observability   |
+| **v1.0.0**         | Stable Framework    | Production-ready voice agent framework                           |
+
 
 v0.1 Prototype Streamlit Interface
 
