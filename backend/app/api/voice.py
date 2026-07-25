@@ -84,7 +84,7 @@ async def interpret_voice(
                 raise PipelineException(
                     code=ErrorCode.SESSION_NOT_FOUND,
                     message="Session not found.",
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=404,
                     details={
                         "session_id": session_id,
                     },
@@ -123,24 +123,7 @@ async def interpret_voice(
             context=execution.context,
         )
 
-        if not result.success:
-            raise build_agent_exception(
-                error_code=result.error_code,
-                error_message=result.error_message,
-            )
-
-        if not result.output:
-            raise PipelineException(
-                code=ErrorCode.INVALID_AGENT_RESULT,
-                message=(
-                    "InterpreterAgent returned an empty result."
-                ),
-                status_code=(
-                    status.HTTP_500_INTERNAL_SERVER_ERROR
-                ),
-            )
-
-        output = result.output
+        output = require_agent_output(result)
 
         if session_id:
             session_manager.add_message(
@@ -157,29 +140,8 @@ async def interpret_voice(
 
         return InterpretTextResponse(**output)
 
-    except PipelineException as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail=exc.to_detail(),
-        ) from exc
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-        pipeline_exception = PipelineException(
-            code=ErrorCode.PIPELINE_ERROR,
-            message="Voice interpretation failed.",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-        raise HTTPException(
-            status_code=pipeline_exception.status_code,
-            detail=pipeline_exception.to_detail(),
-        ) from exc
-
     finally:
         await file.close()
 
         if validated_audio:
-            Path(validated_audio.path).unlink(missing_ok=True)
+            validated_audio.path.unlink(missing_ok=True)

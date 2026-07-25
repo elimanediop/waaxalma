@@ -9,7 +9,7 @@ from app.agents.translation_agent import TranslationAgent
 from app.core.agent_input import AgentInput
 from app.core.logging import logger
 from app.core.session_context import SessionContext
-from app.models.request_models import TranslateTextRequest, SpeakTextRequest
+from app.models.request_models import TranslateTextRequest, SpeakTextRequest, TranslateAndSpeakRequest
 from app.models.response_models import (
     TranslateTextResponse,
     SpeakTextResponse,
@@ -27,22 +27,23 @@ agent_orchestrator = AgentOrchestrator(
 )
 
 
-@router.post("/translate", response_model=TranslateTextResponse)
+@router.post(
+    "/translate",
+    response_model=TranslateTextResponse,
+)
 async def translate_text(
     request: TranslateTextRequest,
 ) -> TranslateTextResponse:
-    logger.info("translate_text started")
-
-    session_id = str(uuid.uuid4())
-
     execution = AgentExecutionFactory.create(
-            operation="translate",
-            payload={
-                "text": request.text,
-                "target_language": request.target_language,
-            },
-            session_id=request.session_id,
-            target_language=request.target_language,
+        operation="translate",
+        payload={
+            "text": request.text,
+            "source_language": request.source_language,
+            "target_language": request.target_language,
+        },
+        session_id=request.session_id,
+        source_language=request.source_language,
+        target_language=request.target_language,
     )
 
     result = await agent_orchestrator.execute(
@@ -51,93 +52,64 @@ async def translate_text(
         context=execution.context,
     )
 
-    if not result.success:
-        logger.error(
-            "translate_text failed: code=%s message=%s",
-            result.error_code,
-            result.error_message,
-        )
+    output = require_agent_output(result)
 
-        status_code = (
-            404
-            if result.error_code == "AGENT_NOT_FOUND"
-            else 400
-            if result.error_code
-            in {
-                "INVALID_INPUT",
-                "UNSUPPORTED_OPERATION",
-            }
-            else 500
-        )
+    return TranslateTextResponse(**output)
 
-        raise HTTPException(
-            status_code=status_code,
-            detail={
-                "code": result.error_code,
-                "message": result.error_message,
-            },
-        )
 
-    logger.info(
-        "translate_text completed: session_id=%s duration_ms=%.2f",
-        session_id,
-        result.duration_ms or 0,
+@router.post(
+    "/speak",
+    response_model=SpeakTextResponse,
+)
+async def speak_text(
+    request: SpeakTextRequest,
+) -> SpeakTextResponse:
+    execution = AgentExecutionFactory.create(
+        operation="speak",
+        payload={
+            "text": request.text,
+            "language": request.language,
+        },
+        session_id=request.session_id,
+        target_language=request.language,
     )
 
-    return TranslateTextResponse(**result.output)
+    result = await agent_orchestrator.execute(
+        agent_name="translation",
+        agent_input=execution.agent_input,
+        context=execution.context,
+    )
 
+    output = require_agent_output(result)
 
-@router.post("/speak", response_model=SpeakTextResponse)
-async def speak_text(request: SpeakTextRequest):
-    try:
-        logger.info("speak_text started")
-
-        result = await agent_orchestrator.execute(
-            agent_name="translation",
-            agent_input=AgentInput(
-                operation="speak",
-                payload={
-                    "text": request.text,
-                },
-            ),
-            context=SessionContext(
-                session_id=str(uuid.uuid4()),
-                target_language="English",  # Default target language
-            ),
-        )
-
-        return SpeakTextResponse(**result)
-
-    except Exception as e:
-        logger.exception("speak_text failed")
-        raise HTTPException(status_code=500, detail=str(e))
+    return SpeakTextResponse(**output)
 
 
 @router.post(
     "/translate-and-speak",
     response_model=TranslateAndSpeakResponse,
 )
-async def translate_and_speak(request: TranslateTextRequest):
-    try:
-        logger.info("translate_and_speak started")
+async def translate_and_speak(
+    request: TranslateAndSpeakRequest,
+) -> TranslateAndSpeakResponse:
+    execution = AgentExecutionFactory.create(
+        operation="translate_and_speak",
+        payload={
+            "text": request.text,
+            "source_language": request.source_language,
+            "target_language": request.target_language,
+        },
+        session_id=request.session_id,
+        source_language=request.source_language,
+        target_language=request.target_language,
+    )
 
-        result = await agent_orchestrator.execute(
-            agent_name="translation",
-            agent_input=AgentInput(
-                operation="translate_and_speak",
-                payload={
-                    "text": request.text,
-                    "target_language": request.target_language,
-                },
-            ),
-            context=SessionContext(
-                session_id=str(uuid.uuid4()),
-                target_language=request.target_language,
-            ),
-        )
+    result = await agent_orchestrator.execute(
+        agent_name="translation",
+        agent_input=execution.agent_input,
+        context=execution.context,
+    )
 
-        return TranslateAndSpeakResponse(**result)
+    output = require_agent_output(result)
 
-    except Exception as e:
-        logger.exception("translate_and_speak failed")
-        raise HTTPException(status_code=500, detail=str(e))
+    return TranslateAndSpeakResponse(**output)

@@ -5,10 +5,7 @@ from app.exceptions.error_codes import ErrorCode
 
 class PipelineException(Exception):
     """
-    Base exception for predictable pipeline failures.
-
-    The API layer can convert this exception into a stable HTTP response
-    without exposing internal implementation details.
+    Base exception for predictable application and pipeline failures.
     """
 
     def __init__(
@@ -18,7 +15,12 @@ class PipelineException(Exception):
         status_code: int = 500,
         details: dict[str, Any] | None = None,
     ) -> None:
-        self.code = code.value if isinstance(code, ErrorCode) else code
+        self.code = (
+            code.value
+            if isinstance(code, ErrorCode)
+            else code
+        )
+
         self.message = message
         self.status_code = status_code
         self.details = details
