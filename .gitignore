@@ -43,3 +43,7 @@ Thumbs.db
 # Helm packaged charts
 chart/*.tgz
 api/poetry.lock
+backend/app/__pycache__/
+backend/app/agents/__pycache__/
+backend/app/api/__pycache__/
+backend/app/static/audio/

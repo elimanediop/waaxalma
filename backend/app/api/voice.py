@@ -1,17 +1,21 @@
-import os
-import shutil
+from pathlib import Path
 import uuid
 
-from app.core.agent_execution_factory import AgentExecutionFactory
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from starlette import status
 
 from app.agents.agent_manager import agent_manager
-from app.orchestration.agent_orchestrator import AgentOrchestrator
-from app.core.agent_input import AgentInput
+from app.core.agent_execution_factory import AgentExecutionFactory
 from app.core.config import UPLOAD_DIR
-from app.core.session_context import SessionContext
+from app.exceptions.error_codes import ErrorCode
+from app.exceptions.pipeline_exception import PipelineException
 from app.models.response_models import InterpretTextResponse
+from app.orchestration.agent_orchestrator import AgentOrchestrator
 from app.sessions.session_manager import session_manager
+from app.validation.audio_validator import (
+    AudioValidator,
+    ValidatedAudio,
+)
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
@@ -19,51 +23,95 @@ agent_orchestrator = AgentOrchestrator(
     agents=agent_manager.get_all(),
 )
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+audio_validator = AudioValidator(
+    upload_dir=UPLOAD_DIR,
+    max_size_bytes=20 * 1024 * 1024,
+    max_duration_seconds=120.0,
+)
 
 
-@router.post("/interpret", response_model=InterpretTextResponse)
+AGENT_ERROR_STATUS_CODES: dict[str, int] = {
+    ErrorCode.AGENT_NOT_FOUND.value: status.HTTP_404_NOT_FOUND,
+    ErrorCode.INVALID_INPUT.value: status.HTTP_400_BAD_REQUEST,
+    ErrorCode.UNSUPPORTED_OPERATION.value: (
+        status.HTTP_400_BAD_REQUEST
+    ),
+    ErrorCode.AGENT_TIMEOUT.value: status.HTTP_504_GATEWAY_TIMEOUT,
+    ErrorCode.PROVIDER_TIMEOUT.value: (
+        status.HTTP_504_GATEWAY_TIMEOUT
+    ),
+    ErrorCode.PROVIDER_UNAVAILABLE.value: (
+        status.HTTP_503_SERVICE_UNAVAILABLE
+    ),
+}
+
+
+def build_agent_exception(
+    error_code: str | None,
+    error_message: str | None,
+) -> PipelineException:
+    normalized_code = (
+        error_code or ErrorCode.AGENT_EXECUTION_FAILED.value
+    )
+
+    return PipelineException(
+        code=normalized_code,
+        message=error_message or "Agent execution failed.",
+        status_code=AGENT_ERROR_STATUS_CODES.get(
+            normalized_code,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ),
+    )
+
+
+@router.post(
+    "/interpret",
+    response_model=InterpretTextResponse,
+)
 async def interpret_voice(
     file: UploadFile = File(...),
     target_language: str = Form("English"),
     session_id: str | None = Form(None),
 ) -> InterpretTextResponse:
-    input_path: str | None = None
+    validated_audio: ValidatedAudio | None = None
+    request_id = str(uuid.uuid4())
 
     try:
-        request_id = str(uuid.uuid4())
-
-        extension = (
-            file.filename.rsplit(".", 1)[-1]
-            if file.filename and "." in file.filename
-            else "wav"
-        )
-
-        input_path = os.path.join(
-            UPLOAD_DIR,
-            f"{request_id}.{extension}",
-        )
-
-        with open(input_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
         if session_id:
             session = session_manager.get_session(session_id)
 
             if not session:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Session not found",
+                raise PipelineException(
+                    code=ErrorCode.SESSION_NOT_FOUND,
+                    message="Session not found.",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    details={
+                        "session_id": session_id,
+                    },
                 )
 
             target_language = session.target_language
 
+        validated_audio = await audio_validator.validate_and_save(
+            file=file,
+            request_id=request_id,
+        )
+
         execution = AgentExecutionFactory.create(
             operation="interpret_audio",
             payload={
-                "audio_path": input_path,
+                "audio_path": str(validated_audio.path),
                 "target_language": target_language,
                 "session_id": session_id,
+                "audio_metadata": {
+                    "extension": validated_audio.extension,
+                    "mime_type": validated_audio.mime_type,
+                    "size_bytes": validated_audio.size_bytes,
+                    "duration_seconds": round(
+                        validated_audio.duration_seconds,
+                        3,
+                    ),
+                },
             },
             session_id=session_id or request_id,
             target_language=target_language,
@@ -76,24 +124,20 @@ async def interpret_voice(
         )
 
         if not result.success:
-            status_code = 500
+            raise build_agent_exception(
+                error_code=result.error_code,
+                error_message=result.error_message,
+            )
 
-            if result.error_code == "AGENT_NOT_FOUND":
-                status_code = 404
-            elif result.error_code in {
-                "INVALID_INPUT",
-                "UNSUPPORTED_OPERATION",
-            }:
-                status_code = 400
-            elif result.error_code == "AGENT_TIMEOUT":
-                status_code = 504
-
-            raise HTTPException(
-                status_code=status_code,
-                detail={
-                    "code": result.error_code,
-                    "message": result.error_message,
-                },
+        if not result.output:
+            raise PipelineException(
+                code=ErrorCode.INVALID_AGENT_RESULT,
+                message=(
+                    "InterpreterAgent returned an empty result."
+                ),
+                status_code=(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
+                ),
             )
 
         output = result.output
@@ -113,17 +157,29 @@ async def interpret_voice(
 
         return InterpretTextResponse(**output)
 
+    except PipelineException as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.to_detail(),
+        ) from exc
+
     except HTTPException:
         raise
 
     except Exception as exc:
+        pipeline_exception = PipelineException(
+            code=ErrorCode.PIPELINE_ERROR,
+            message="Voice interpretation failed.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
         raise HTTPException(
-            status_code=500,
-            detail=str(exc),
+            status_code=pipeline_exception.status_code,
+            detail=pipeline_exception.to_detail(),
         ) from exc
 
     finally:
         await file.close()
 
-        if input_path and os.path.exists(input_path):
-            os.remove(input_path)
+        if validated_audio:
+            Path(validated_audio.path).unlink(missing_ok=True)
