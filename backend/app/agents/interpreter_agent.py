@@ -1,10 +1,12 @@
 import uuid
+from typing import Any
 
 from app.agents.base_agent import BaseAgent
 from app.core.agent_input import AgentInput
 from app.core.agent_result import AgentResult
 from app.core.config import STATIC_AUDIO_URL_PREFIX
 from app.core.session_context import SessionContext
+from app.exceptions.error_codes import ErrorCode
 from app.providers.openai_provider import (
     OpenAISpeechProvider,
     OpenAISpeechToTextProvider,
@@ -14,6 +16,8 @@ from app.skills.speech_skill import SpeechSkill
 from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
 
+from app.observability.stage_tracer import trace_async_stage
+
 
 class InterpreterAgent(BaseAgent):
     description = (
@@ -21,20 +25,35 @@ class InterpreterAgent(BaseAgent):
         "and generates spoken audio."
     )
 
-    def __init__(self) -> None:
-        translation_provider = OpenAITranslationProvider()
-        speech_provider = OpenAISpeechProvider()
-        speech_to_text_provider = OpenAISpeechToTextProvider()
+    def __init__(
+            self,
+            translation_skill: TranslationSkill | None = None,
+            speech_skill: SpeechSkill | None = None,
+            speech_to_text_skill: SpeechToTextSkill | None = None,
+        ) -> None:
+            self.translation_skill = (
+                translation_skill
+                if translation_skill is not None
+                else TranslationSkill(
+                    OpenAITranslationProvider(),
+                )
+            )
 
-        self.translation_skill = TranslationSkill(
-            translation_provider,
-        )
-        self.speech_skill = SpeechSkill(
-            speech_provider,
-        )
-        self.speech_to_text_skill = SpeechToTextSkill(
-            speech_to_text_provider,
-        )
+            self.speech_skill = (
+                speech_skill
+                if speech_skill is not None
+                else SpeechSkill(
+                    OpenAISpeechProvider(),
+                )
+            )
+
+            self.speech_to_text_skill = (
+                speech_to_text_skill
+                if speech_to_text_skill is not None
+                else SpeechToTextSkill(
+                    OpenAISpeechToTextProvider(),
+                )
+            )
 
     @property
     def name(self) -> str:
@@ -49,48 +68,46 @@ class InterpreterAgent(BaseAgent):
         payload = agent_input.payload
 
         if operation == "interpret":
-            return self._execute_text_interpretation(
+            return await self._execute_text_interpretation(
                 payload=payload,
                 context=context,
             )
 
         if operation == "interpret_audio":
-            return self._execute_audio_interpretation(
+            return await self._execute_audio_interpretation(
                 payload=payload,
                 context=context,
             )
 
         return AgentResult(
             success=False,
-            error_code="UNSUPPORTED_OPERATION",
+            error_code=ErrorCode.UNSUPPORTED_OPERATION.value,
             error_message=(
                 f"Operation '{operation}' is not supported "
-                f"by agent '{self.name}'"
+                f"by agent '{self.name}'."
             ),
-            metadata={
-                "agent": self.name,
-                "operation": operation,
-                "session_id": context.session_id,
-            },
+            metadata=self._build_metadata(
+                operation=operation,
+                context=context,
+            ),
         )
 
-    def _execute_text_interpretation(
+    async def _execute_text_interpretation(
         self,
-        payload: dict,
+        payload: dict[str, Any],
         context: SessionContext,
     ) -> AgentResult:
         text = payload.get("text")
 
-        if not text:
+        if not isinstance(text, str) or not text.strip():
             return AgentResult(
                 success=False,
-                error_code="INVALID_INPUT",
-                error_message="'text' is required",
-                metadata={
-                    "agent": self.name,
-                    "operation": "interpret",
-                    "session_id": context.session_id,
-                },
+                error_code=ErrorCode.INVALID_INPUT.value,
+                error_message="'text' is required.",
+                metadata=self._build_metadata(
+                    operation="interpret",
+                    context=context,
+                ),
             )
 
         target_language = payload.get(
@@ -98,39 +115,36 @@ class InterpreterAgent(BaseAgent):
             context.target_language,
         )
 
-        output = self.interpret(
-            text=text,
+        output = await self.interpret(
+            text=text.strip(),
             target_language=target_language,
-            session_id=context.session_id,
+            context=context,
         )
-
         return AgentResult(
             success=True,
             output=output,
-            metadata={
-                "agent": self.name,
-                "operation": "interpret",
-                "session_id": context.session_id,
-            },
+            metadata=self._build_metadata(
+                operation="interpret",
+                context=context,
+            ),
         )
 
-    def _execute_audio_interpretation(
+    async def _execute_audio_interpretation(
         self,
-        payload: dict,
+        payload: dict[str, Any],
         context: SessionContext,
     ) -> AgentResult:
         audio_path = payload.get("audio_path")
 
-        if not audio_path:
+        if not isinstance(audio_path, str) or not audio_path.strip():
             return AgentResult(
                 success=False,
-                error_code="INVALID_INPUT",
-                error_message="'audio_path' is required",
-                metadata={
-                    "agent": self.name,
-                    "operation": "interpret_audio",
-                    "session_id": context.session_id,
-                },
+                error_code=ErrorCode.INVALID_INPUT.value,
+                error_message="'audio_path' is required.",
+                metadata=self._build_metadata(
+                    operation="interpret_audio",
+                    context=context,
+                ),
             )
 
         target_language = payload.get(
@@ -138,65 +152,98 @@ class InterpreterAgent(BaseAgent):
             context.target_language,
         )
 
-        output = self.interpret_audio(
+        output = await self.interpret_audio(
             audio_path=audio_path,
             target_language=target_language,
-            session_id=context.session_id,
+            context=context,
         )
 
         return AgentResult(
             success=True,
             output=output,
-            metadata={
-                "agent": self.name,
-                "operation": "interpret_audio",
-                "session_id": context.session_id,
-            },
+            metadata=self._build_metadata(
+                operation="interpret_audio",
+                context=context,
+            ),
         )
 
-    def interpret(
-        self,
-        text: str,
-        target_language: str = "English",
-        session_id: str | None = None,
+    async def interpret(
+    self,
+    text: str,
+    target_language: str,
+    context: SessionContext,
     ) -> dict:
         request_id = str(uuid.uuid4())
 
-        interpreted_text = self.translation_skill.execute(
-            text=text,
-            target_language=target_language,
+        interpreted_text = await trace_async_stage(
+            trace=context.trace,
+            agent=self.name,
+            stage="translation",
+            operation="translate",
+            provider=self.translation_skill.provider_name,
+            call=lambda: self.translation_skill.execute(
+                text=text,
+                target_language=target_language,
+            ),
         )
 
         output_filename = f"{request_id}.mp3"
 
-        self.speech_skill.execute(
-            text=interpreted_text,
-            output_filename=output_filename,
+        await trace_async_stage(
+            trace=context.trace,
+            agent=self.name,
+            stage="speech",
+            operation="speak",
+            provider=self.speech_skill.provider_name,
+            call=lambda: self.speech_skill.execute(
+                text=interpreted_text,
+                output_filename=output_filename,
+            ),
         )
 
         return {
             "request_id": request_id,
-            "session_id": session_id,
+            "session_id": context.session_id,
             "agent": self.name,
             "source_text": text,
             "interpreted_text": interpreted_text,
             "audio_url": (
                 f"{STATIC_AUDIO_URL_PREFIX}/{output_filename}"
             ),
-        }
+    }
 
-    def interpret_audio(
+
+    async def interpret_audio(
         self,
         audio_path: str,
-        target_language: str = "English",
-        session_id: str | None = None,
+        target_language: str,
+        context: SessionContext,
     ) -> dict:
-        source_text = self.speech_to_text_skill.execute(
-            audio_path,
+        source_text = await trace_async_stage(
+            trace=context.trace,
+            agent=self.name,
+            stage="transcription",
+            operation="transcribe",
+            provider=self.speech_to_text_skill.provider_name,
+            call=lambda: self.speech_to_text_skill.execute(
+                audio_path=audio_path,
+            ),
         )
 
-        return self.interpret(
+        return await self.interpret(
             text=source_text,
             target_language=target_language,
-            session_id=session_id,
+            context=context,
         )
+
+
+    def _build_metadata(
+        self,
+        operation: str,
+        context: SessionContext,
+    ) -> dict[str, Any]:
+        return {
+            "agent": self.name,
+            "operation": operation,
+            "session_id": context.session_id,
+        }

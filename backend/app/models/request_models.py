@@ -19,3 +19,25 @@ class TranslateTextRequest(BaseModel):
 
 class SpeakTextRequest(BaseModel):
     text: str = Field(..., min_length=1)
+
+
+
+class TranslateAndSpeakRequest(BaseModel):
+    text: str = Field(
+        ...,
+        min_length=1,
+        description="Text to translate and synthesize as speech.",
+    )
+    source_language: str | None = Field(
+        default=None,
+        description="Source language. If omitted, language detection may be used.",
+    )
+    target_language: str = Field(
+        default="English",
+        min_length=2,
+        description="Target language for translation and speech synthesis.",
+    )
+    session_id: str | None = Field(
+        default=None,
+        description="Optional conversation session identifier.",
+    )
