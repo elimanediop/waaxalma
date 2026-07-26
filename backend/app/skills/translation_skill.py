@@ -11,6 +11,14 @@ class TranslationSkill:
     ) -> None:
         self.provider = provider
 
+    @property
+    def provider_name(self) -> str:
+        return getattr(
+            self.provider,
+            "name",
+            self.provider.__class__.__name__,
+        )
+
     async def execute(
         self,
         text: str,

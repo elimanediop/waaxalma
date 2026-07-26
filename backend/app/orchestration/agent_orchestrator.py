@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from unittest import result
 
 from app.agents.base_agent import BaseAgent
 from app.core.agent_input import AgentInput
@@ -8,6 +9,7 @@ from app.core.agent_result import AgentResult
 from app.core.session_context import SessionContext
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.pipeline_exception import PipelineException
+from app.observability.metrics import record_agent_execution
 
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,10 @@ class AgentOrchestrator:
 
             result.duration_ms = self._elapsed_ms(started_at)
 
+            context.trace.total_duration_ms = duration_ms
+
+            result.duration_ms = duration_ms
+
             result.metadata = {
                 **(result.metadata or {}),
                 **self._build_metadata(
@@ -59,7 +65,23 @@ class AgentOrchestrator:
                     operation=agent_input.operation,
                     context=context,
                 ),
+                "trace_id": context.trace.trace_id,
+                "stage_durations_ms": (
+                    context.trace.stage_durations()
+                ),
             }
+
+            record_agent_execution(
+                agent=agent_name,
+                operation=agent_input.operation,
+                outcome=(
+                    "success"
+                    if result.success
+                    else "error"
+                ),
+                duration_ms=duration_ms,
+            )
+
 
             return result
 
@@ -165,6 +187,7 @@ class AgentOrchestrator:
             "agent": agent_name,
             "operation": operation,
             "session_id": context.session_id,
+            "trace_id": context.trace.trace_id,
         }
 
     @staticmethod

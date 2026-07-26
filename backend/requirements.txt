@@ -6,3 +6,4 @@ openai
 streamlit
 requests
 mutagen
+prometheus-client

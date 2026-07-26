@@ -7,6 +7,9 @@ from app.api.sessions import router as sessions_router
 from app.api.interpreter import router as interpreter_router
 from app.api.voice import router as voice_router
 from app.api.error_handlers import register_exception_handlers
+from app.observability.metrics_endpoint import (
+    register_metrics_endpoint,
+)
 
 app = FastAPI(
     title="Waaxalma API",
@@ -15,6 +18,7 @@ app = FastAPI(
 )
 
 register_exception_handlers(app)
+register_metrics_endpoint(app)
 
 app.include_router(text_router)
 app.include_router(agents_router)

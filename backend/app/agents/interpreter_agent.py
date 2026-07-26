@@ -16,6 +16,8 @@ from app.skills.speech_skill import SpeechSkill
 from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
 
+from app.observability.stage_tracer import trace_async_stage
+
 
 class InterpreterAgent(BaseAgent):
     description = (
@@ -101,9 +103,8 @@ class InterpreterAgent(BaseAgent):
         output = await self.interpret(
             text=text.strip(),
             target_language=target_language,
-            session_id=context.session_id,
+            context=context,
         )
-
         return AgentResult(
             success=True,
             output=output,
@@ -139,7 +140,7 @@ class InterpreterAgent(BaseAgent):
         output = await self.interpret_audio(
             audio_path=audio_path,
             target_language=target_language,
-            session_id=context.session_id,
+            context=context,
         )
 
         return AgentResult(
@@ -152,51 +153,74 @@ class InterpreterAgent(BaseAgent):
         )
 
     async def interpret(
-        self,
-        text: str,
-        target_language: str = "English",
-        session_id: str | None = None,
-    ) -> dict[str, Any]:
+    self,
+    text: str,
+    target_language: str,
+    context: SessionContext,
+    ) -> dict:
         request_id = str(uuid.uuid4())
 
-        interpreted_text = await self.translation_skill.execute(
-            text=text,
-            target_language=target_language,
+        interpreted_text = await trace_async_stage(
+            trace=context.trace,
+            agent=self.name,
+            stage="translation",
+            operation="translate",
+            provider=self.translation_skill.provider_name,
+            call=lambda: self.translation_skill.execute(
+                text=text,
+                target_language=target_language,
+            ),
         )
 
         output_filename = f"{request_id}.mp3"
 
-        await self.speech_skill.execute(
-            text=interpreted_text,
-            output_filename=output_filename,
+        await trace_async_stage(
+            trace=context.trace,
+            agent=self.name,
+            stage="speech",
+            operation="speak",
+            provider=self.speech_skill.provider_name,
+            call=lambda: self.speech_skill.execute(
+                text=interpreted_text,
+                output_filename=output_filename,
+            ),
         )
 
         return {
             "request_id": request_id,
-            "session_id": session_id,
+            "session_id": context.session_id,
             "agent": self.name,
             "source_text": text,
             "interpreted_text": interpreted_text,
             "audio_url": (
                 f"{STATIC_AUDIO_URL_PREFIX}/{output_filename}"
             ),
-        }
+    }
+
 
     async def interpret_audio(
         self,
         audio_path: str,
-        target_language: str = "English",
-        session_id: str | None = None,
-    ) -> dict[str, Any]:
-        source_text = await self.speech_to_text_skill.execute(
-            audio_path=audio_path,
+        target_language: str,
+        context: SessionContext,
+    ) -> dict:
+        source_text = await trace_async_stage(
+            trace=context.trace,
+            agent=self.name,
+            stage="transcription",
+            operation="transcribe",
+            provider=self.speech_to_text_skill.provider_name,
+            call=lambda: self.speech_to_text_skill.execute(
+                audio_path=audio_path,
+            ),
         )
 
         return await self.interpret(
             text=source_text,
             target_language=target_language,
-            session_id=session_id,
+            context=context,
         )
+
 
     def _build_metadata(
         self,
