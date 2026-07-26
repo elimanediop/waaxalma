@@ -4,6 +4,7 @@ from app.agents.base_agent import BaseAgent
 from app.core.agent_input import AgentInput
 from app.core.agent_result import AgentResult
 from app.core.session_context import SessionContext
+from app.exceptions.pipeline_exception import PipelineException
 
 
 class AgentOrchestrator:

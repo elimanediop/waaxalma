@@ -1,12 +1,22 @@
-from app.providers.base_provider import BaseTranslationProvider
+from app.providers.openai_provider import (
+    OpenAITranslationProvider,
+)
 
 
 class TranslationSkill:
-    def __init__(self, provider: BaseTranslationProvider):
+
+    def __init__(
+        self,
+        provider: OpenAITranslationProvider,
+    ) -> None:
         self.provider = provider
 
-    def execute(self, text: str, target_language: str = "English") -> str:
-        return self.provider.translate(
+    async def execute(
+        self,
+        text: str,
+        target_language: str,
+    ) -> str:
+        return await self.provider.translate(
             text=text,
             target_language=target_language,
         )

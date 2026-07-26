@@ -16,6 +16,7 @@ from app.validation.audio_validator import (
     AudioValidator,
     ValidatedAudio,
 )
+from app.orchestration.result_handler import require_agent_output
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 

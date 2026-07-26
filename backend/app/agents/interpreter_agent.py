@@ -1,10 +1,12 @@
 import uuid
+from typing import Any
 
 from app.agents.base_agent import BaseAgent
 from app.core.agent_input import AgentInput
 from app.core.agent_result import AgentResult
 from app.core.config import STATIC_AUDIO_URL_PREFIX
 from app.core.session_context import SessionContext
+from app.exceptions.error_codes import ErrorCode
 from app.providers.openai_provider import (
     OpenAISpeechProvider,
     OpenAISpeechToTextProvider,
@@ -49,48 +51,46 @@ class InterpreterAgent(BaseAgent):
         payload = agent_input.payload
 
         if operation == "interpret":
-            return self._execute_text_interpretation(
+            return await self._execute_text_interpretation(
                 payload=payload,
                 context=context,
             )
 
         if operation == "interpret_audio":
-            return self._execute_audio_interpretation(
+            return await self._execute_audio_interpretation(
                 payload=payload,
                 context=context,
             )
 
         return AgentResult(
             success=False,
-            error_code="UNSUPPORTED_OPERATION",
+            error_code=ErrorCode.UNSUPPORTED_OPERATION.value,
             error_message=(
                 f"Operation '{operation}' is not supported "
-                f"by agent '{self.name}'"
+                f"by agent '{self.name}'."
             ),
-            metadata={
-                "agent": self.name,
-                "operation": operation,
-                "session_id": context.session_id,
-            },
+            metadata=self._build_metadata(
+                operation=operation,
+                context=context,
+            ),
         )
 
-    def _execute_text_interpretation(
+    async def _execute_text_interpretation(
         self,
-        payload: dict,
+        payload: dict[str, Any],
         context: SessionContext,
     ) -> AgentResult:
         text = payload.get("text")
 
-        if not text:
+        if not isinstance(text, str) or not text.strip():
             return AgentResult(
                 success=False,
-                error_code="INVALID_INPUT",
-                error_message="'text' is required",
-                metadata={
-                    "agent": self.name,
-                    "operation": "interpret",
-                    "session_id": context.session_id,
-                },
+                error_code=ErrorCode.INVALID_INPUT.value,
+                error_message="'text' is required.",
+                metadata=self._build_metadata(
+                    operation="interpret",
+                    context=context,
+                ),
             )
 
         target_language = payload.get(
@@ -98,8 +98,8 @@ class InterpreterAgent(BaseAgent):
             context.target_language,
         )
 
-        output = self.interpret(
-            text=text,
+        output = await self.interpret(
+            text=text.strip(),
             target_language=target_language,
             session_id=context.session_id,
         )
@@ -107,30 +107,28 @@ class InterpreterAgent(BaseAgent):
         return AgentResult(
             success=True,
             output=output,
-            metadata={
-                "agent": self.name,
-                "operation": "interpret",
-                "session_id": context.session_id,
-            },
+            metadata=self._build_metadata(
+                operation="interpret",
+                context=context,
+            ),
         )
 
-    def _execute_audio_interpretation(
+    async def _execute_audio_interpretation(
         self,
-        payload: dict,
+        payload: dict[str, Any],
         context: SessionContext,
     ) -> AgentResult:
         audio_path = payload.get("audio_path")
 
-        if not audio_path:
+        if not isinstance(audio_path, str) or not audio_path.strip():
             return AgentResult(
                 success=False,
-                error_code="INVALID_INPUT",
-                error_message="'audio_path' is required",
-                metadata={
-                    "agent": self.name,
-                    "operation": "interpret_audio",
-                    "session_id": context.session_id,
-                },
+                error_code=ErrorCode.INVALID_INPUT.value,
+                error_message="'audio_path' is required.",
+                metadata=self._build_metadata(
+                    operation="interpret_audio",
+                    context=context,
+                ),
             )
 
         target_language = payload.get(
@@ -138,7 +136,7 @@ class InterpreterAgent(BaseAgent):
             context.target_language,
         )
 
-        output = self.interpret_audio(
+        output = await self.interpret_audio(
             audio_path=audio_path,
             target_language=target_language,
             session_id=context.session_id,
@@ -147,29 +145,28 @@ class InterpreterAgent(BaseAgent):
         return AgentResult(
             success=True,
             output=output,
-            metadata={
-                "agent": self.name,
-                "operation": "interpret_audio",
-                "session_id": context.session_id,
-            },
+            metadata=self._build_metadata(
+                operation="interpret_audio",
+                context=context,
+            ),
         )
 
-    def interpret(
+    async def interpret(
         self,
         text: str,
         target_language: str = "English",
         session_id: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         request_id = str(uuid.uuid4())
 
-        interpreted_text = self.translation_skill.execute(
+        interpreted_text = await self.translation_skill.execute(
             text=text,
             target_language=target_language,
         )
 
         output_filename = f"{request_id}.mp3"
 
-        self.speech_skill.execute(
+        await self.speech_skill.execute(
             text=interpreted_text,
             output_filename=output_filename,
         )
@@ -185,18 +182,29 @@ class InterpreterAgent(BaseAgent):
             ),
         }
 
-    def interpret_audio(
+    async def interpret_audio(
         self,
         audio_path: str,
         target_language: str = "English",
         session_id: str | None = None,
-    ) -> dict:
-        source_text = self.speech_to_text_skill.execute(
-            audio_path,
+    ) -> dict[str, Any]:
+        source_text = await self.speech_to_text_skill.execute(
+            audio_path=audio_path,
         )
 
-        return self.interpret(
+        return await self.interpret(
             text=source_text,
             target_language=target_language,
             session_id=session_id,
         )
+
+    def _build_metadata(
+        self,
+        operation: str,
+        context: SessionContext,
+    ) -> dict[str, Any]:
+        return {
+            "agent": self.name,
+            "operation": operation,
+            "session_id": context.session_id,
+        }

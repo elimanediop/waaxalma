@@ -10,8 +10,13 @@ AGENT_ERROR_STATUS_CODES: dict[str, int] = {
     ErrorCode.INVALID_INPUT.value: 400,
     ErrorCode.UNSUPPORTED_OPERATION.value: 400,
     ErrorCode.AGENT_TIMEOUT.value: 504,
+
     ErrorCode.PROVIDER_TIMEOUT.value: 504,
     ErrorCode.PROVIDER_UNAVAILABLE.value: 503,
+    ErrorCode.PROVIDER_RATE_LIMITED.value: 503,
+    ErrorCode.PROVIDER_AUTHENTICATION_FAILED.value: 502,
+    ErrorCode.PROVIDER_REQUEST_FAILED.value: 502,
+
     ErrorCode.INVALID_AGENT_RESULT.value: 500,
     ErrorCode.AGENT_EXECUTION_FAILED.value: 500,
 }

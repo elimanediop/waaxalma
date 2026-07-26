@@ -1,9 +1,20 @@
-from app.providers.base_provider import BaseSpeechToTextProvider
+from app.providers.openai_provider import (
+    OpenAISpeechToTextProvider,
+)
 
 
 class SpeechToTextSkill:
-    def __init__(self, provider: BaseSpeechToTextProvider):
+
+    def __init__(
+        self,
+        provider: OpenAISpeechToTextProvider,
+    ) -> None:
         self.provider = provider
 
-    def execute(self, audio_path: str) -> str:
-        return self.provider.transcribe(audio_path)
+    async def execute(
+        self,
+        audio_path: str,
+    ) -> str:
+        return await self.provider.transcribe(
+            audio_path=audio_path,
+        )
