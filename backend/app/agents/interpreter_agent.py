@@ -25,20 +25,35 @@ class InterpreterAgent(BaseAgent):
         "and generates spoken audio."
     )
 
-    def __init__(self) -> None:
-        translation_provider = OpenAITranslationProvider()
-        speech_provider = OpenAISpeechProvider()
-        speech_to_text_provider = OpenAISpeechToTextProvider()
+    def __init__(
+            self,
+            translation_skill: TranslationSkill | None = None,
+            speech_skill: SpeechSkill | None = None,
+            speech_to_text_skill: SpeechToTextSkill | None = None,
+        ) -> None:
+            self.translation_skill = (
+                translation_skill
+                if translation_skill is not None
+                else TranslationSkill(
+                    OpenAITranslationProvider(),
+                )
+            )
 
-        self.translation_skill = TranslationSkill(
-            translation_provider,
-        )
-        self.speech_skill = SpeechSkill(
-            speech_provider,
-        )
-        self.speech_to_text_skill = SpeechToTextSkill(
-            speech_to_text_provider,
-        )
+            self.speech_skill = (
+                speech_skill
+                if speech_skill is not None
+                else SpeechSkill(
+                    OpenAISpeechProvider(),
+                )
+            )
+
+            self.speech_to_text_skill = (
+                speech_to_text_skill
+                if speech_to_text_skill is not None
+                else SpeechToTextSkill(
+                    OpenAISpeechToTextProvider(),
+                )
+            )
 
     @property
     def name(self) -> str:

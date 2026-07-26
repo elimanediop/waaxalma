@@ -52,10 +52,9 @@ class AgentOrchestrator:
                 context,
             )
 
-            result.duration_ms = self._elapsed_ms(started_at)
+            duration_ms = self._elapsed_ms(started_at)
 
             context.trace.total_duration_ms = duration_ms
-
             result.duration_ms = duration_ms
 
             result.metadata = {
@@ -65,7 +64,6 @@ class AgentOrchestrator:
                     operation=agent_input.operation,
                     context=context,
                 ),
-                "trace_id": context.trace.trace_id,
                 "stage_durations_ms": (
                     context.trace.stage_durations()
                 ),
@@ -74,14 +72,9 @@ class AgentOrchestrator:
             record_agent_execution(
                 agent=agent_name,
                 operation=agent_input.operation,
-                outcome=(
-                    "success"
-                    if result.success
-                    else "error"
-                ),
+                outcome="success" if result.success else "error",
                 duration_ms=duration_ms,
             )
-
 
             return result
 
@@ -162,9 +155,8 @@ class AgentOrchestrator:
 
             return AgentResult(
                 success=False,
-                error_code=(
-                    ErrorCode.AGENT_EXECUTION_FAILED.value
-                ),
+                output=None,
+                error_code=ErrorCode.AGENT_EXECUTION_FAILED.value,
                 error_message=(
                     f"Agent '{agent_name}' execution failed."
                 ),
