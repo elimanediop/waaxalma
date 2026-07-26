@@ -7,6 +7,7 @@ __pycache__/
 .venv/
 venv/
 env/
+backend/.venv/
 
 # Build and packaging artifacts
 build/
@@ -29,6 +30,7 @@ htmlcov/
 # Environment files
 .env
 .env.*
+!.env.example
 .deploy/api.debug.env
 
 # Editor and OS files
@@ -44,4 +46,6 @@ Thumbs.db
 chart/*.tgz
 api/poetry.lock
 
-static/audio/
+# Generated audio files
+backend/static/audio/*
+!backend/static/audio/.gitkeep
