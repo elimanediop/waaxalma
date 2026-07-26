@@ -28,7 +28,7 @@ app.include_router(voice_router)
 
 
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/health")
