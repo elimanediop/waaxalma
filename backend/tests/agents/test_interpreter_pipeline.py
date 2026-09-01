@@ -12,6 +12,7 @@ from app.exceptions.provider_exception import (
 from app.orchestration.agent_orchestrator import (
     AgentOrchestrator,
 )
+from app.registry.agent_registry import AgentRegistry
 
 
 def create_skill(
@@ -54,10 +55,11 @@ async def test_audio_pipeline_success() -> None:
         speech_to_text_skill=speech_to_text_skill,
     )
 
+    registry = AgentRegistry()
+    registry.register(agent)
+
     orchestrator = AgentOrchestrator(
-        agents={
-            agent.name: agent,
-        }
+        registry=registry,
     )
 
     context = SessionContext(
@@ -139,10 +141,11 @@ async def test_partial_pipeline_failure_during_speech() -> None:
         speech_to_text_skill=speech_to_text_skill,
     )
 
+    registry = AgentRegistry()
+    registry.register(agent)
+
     orchestrator = AgentOrchestrator(
-        agents={
-            agent.name: agent,
-        }
+        registry=registry,
     )
 
     context = SessionContext(

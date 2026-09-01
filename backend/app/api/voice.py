@@ -17,12 +17,25 @@ from app.validation.audio_validator import (
     ValidatedAudio,
 )
 from app.orchestration.result_handler import require_agent_output
+from app.registry.agent_registry import AgentRegistry
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
+def build_agent_registry() -> AgentRegistry:
+    registry = AgentRegistry()
+
+    for agent in agent_manager.get_all().values():
+        registry.register(agent)
+
+    return registry
+
+
+agent_registry = build_agent_registry()
+
 agent_orchestrator = AgentOrchestrator(
-    agents=agent_manager.get_all(),
+    registry=agent_registry,
 )
+
 
 audio_validator = AudioValidator(
     upload_dir=UPLOAD_DIR,

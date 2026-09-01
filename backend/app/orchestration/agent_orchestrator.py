@@ -10,6 +10,7 @@ from app.core.session_context import SessionContext
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.pipeline_exception import PipelineException
 from app.observability.metrics import record_agent_execution
+from app.registry.agent_registry import AgentRegistry
 
 
 logger = logging.getLogger(__name__)
@@ -19,9 +20,9 @@ class AgentOrchestrator:
 
     def __init__(
         self,
-        agents: dict[str, BaseAgent],
+        registry: AgentRegistry,
     ) -> None:
-        self._agents = agents
+        self._registry = registry
 
     async def execute(
         self,
@@ -31,7 +32,7 @@ class AgentOrchestrator:
     ) -> AgentResult:
         started_at = time.perf_counter()
 
-        agent = self._agents.get(agent_name)
+        agent = self._registry.find(agent_name)
 
         if agent is None:
             return AgentResult(
