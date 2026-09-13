@@ -201,3 +201,73 @@ async def test_partial_pipeline_failure_during_speech() -> None:
         stages[2].error_code
         == "PROVIDER_UNAVAILABLE"
     )
+
+@pytest.mark.asyncio
+async def test_text_interpreter_pipeline_success() -> None:
+    translation_skill = create_skill(
+        provider_name="fake-translation",
+        result="How are you?",
+    )
+
+    speech_skill = create_skill(
+        provider_name="fake-tts",
+        result=None,
+    )
+
+    speech_to_text_skill = create_skill(
+        provider_name="fake-stt",
+    )
+
+    agent = InterpreterAgent(
+        translation_skill=translation_skill,
+        speech_skill=speech_skill,
+        speech_to_text_skill=speech_to_text_skill,
+    )
+
+    registry = AgentRegistry()
+    registry.register(agent)
+
+    orchestrator = AgentOrchestrator(
+        registry=registry,
+    )
+
+    context = SessionContext(
+        session_id="text-interpreter-test",
+        target_language="English",
+    )
+
+    result = await orchestrator.execute(
+        agent_name="interpreter",
+        agent_input=AgentInput(
+            operation="interpret",
+            payload={
+                "text": "Naka nga def?",
+                "target_language": "English",
+            },
+        ),
+        context=context,
+    )
+
+    assert result.success is True
+    assert result.output is not None
+
+    assert (
+        result.output["interpreted_text"]
+        == "How are you?"
+    )
+
+    translation_skill.execute.assert_awaited_once_with(
+        text="Naka nga def?",
+        target_language="English",
+    )
+
+    speech_skill.execute.assert_awaited_once()
+    speech_to_text_skill.execute.assert_not_awaited()
+
+    assert [
+        stage.stage
+        for stage in context.trace.stages
+    ] == [
+        "translation",
+        "speech",
+    ]

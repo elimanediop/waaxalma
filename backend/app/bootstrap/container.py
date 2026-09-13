@@ -18,9 +18,18 @@ def build_agent_registry() -> AgentRegistry:
     return registry
 
 
-def build_orchestrator() -> AgentOrchestrator:
-    registry = build_agent_registry()
-
+def build_orchestrator(
+    registry: AgentRegistry,
+) -> AgentOrchestrator:
     return AgentOrchestrator(
         registry=registry,
     )
+
+
+# Application-level instances.
+# There must be only one registry used by the application.
+agent_registry = build_agent_registry()
+
+agent_orchestrator = build_orchestrator(
+    registry=agent_registry,
+)
