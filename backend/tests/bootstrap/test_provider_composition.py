@@ -5,6 +5,13 @@ from app.core.agent_input import AgentInput
 from app.core.session_context import SessionContext
 from app.registry.provider_registry import ProviderRegistry
 
+from app.bootstrap.container import (
+    build_pipeline_registry,
+)
+from app.skills.speech_skill import SpeechSkill
+from app.skills.speech_to_text_skill import SpeechToTextSkill
+from app.skills.translation_skill import TranslationSkill
+
 
 class FakeTranslationProvider:
 
@@ -142,21 +149,6 @@ async def test_interpreter_uses_selected_providers() -> None:
 
     assert interpreter is not None
 
-    assert (
-        interpreter.translation_skill.provider_name
-        == "fake"
-    )
-
-    assert (
-        interpreter.speech_skill.provider_name
-        == "fake"
-    )
-
-    assert (
-        interpreter.speech_to_text_skill.provider_name
-        == "fake"
-    )
-
     context = SessionContext(
         session_id="fake-interpreter-test",
         target_language="English",
@@ -184,7 +176,21 @@ async def test_interpreter_uses_selected_providers() -> None:
     assert (
         result.output["interpreted_text"]
         == "[fake:English] Fake transcription"
-    )  
+    )
+
+    assert (
+        result.output["audio_url"]
+        .endswith(".mp3")
+    )
+
+    assert [
+        stage.stage
+        for stage in context.trace.stages
+    ] == [
+        "transcription",
+        "translation",
+        "speech",
+    ]
 
 
 def test_unknown_configured_provider_fails_fast() -> None:
@@ -200,3 +206,57 @@ def test_unknown_configured_provider_fails_fast() -> None:
             speech_provider_name="fake",
             speech_to_text_provider_name="fake",
         )
+
+def test_pipeline_registry_builds_interpreter_pipelines() -> None:
+    provider_registry = build_fake_provider_registry()
+
+    translation_skill = TranslationSkill(
+        provider=provider_registry.get(
+            capability="translation",
+            name="fake",
+        )
+    )
+
+    speech_skill = SpeechSkill(
+        provider=provider_registry.get(
+            capability="speech",
+            name="fake",
+        )
+    )
+
+    speech_to_text_skill = SpeechToTextSkill(
+        provider=provider_registry.get(
+            capability="speech_to_text",
+            name="fake",
+        )
+    )
+
+    pipeline_registry = build_pipeline_registry(
+        translation_skill=translation_skill,
+        speech_skill=speech_skill,
+        speech_to_text_skill=speech_to_text_skill,
+    )
+
+    assert pipeline_registry.names() == [
+        "interpreter.audio",
+        "interpreter.text",
+    ]
+
+    assert (
+        pipeline_registry
+        .get("interpreter.text")
+        .stage_names
+    ) == [
+        "translation",
+        "speech",
+    ]
+
+    assert (
+        pipeline_registry
+        .get("interpreter.audio")
+        .stage_names
+    ) == [
+        "transcription",
+        "translation",
+        "speech",
+    ]
