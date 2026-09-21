@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from starlette import status
 
-from app.agents.agent_manager import agent_manager
+from app.bootstrap.container import agent_manager
 from app.core.agent_execution_factory import AgentExecutionFactory
 from app.core.config import UPLOAD_DIR
 from app.exceptions.error_codes import ErrorCode

@@ -7,11 +7,6 @@ from app.core.agent_result import AgentResult
 from app.core.config import STATIC_AUDIO_URL_PREFIX
 from app.core.session_context import SessionContext
 from app.exceptions.error_codes import ErrorCode
-from app.providers.openai_provider import (
-    OpenAISpeechProvider,
-    OpenAISpeechToTextProvider,
-    OpenAITranslationProvider,
-)
 from app.skills.speech_skill import SpeechSkill
 from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
@@ -31,29 +26,12 @@ class InterpreterAgent(BaseAgent):
             speech_skill: SpeechSkill | None = None,
             speech_to_text_skill: SpeechToTextSkill | None = None,
         ) -> None:
-            self.translation_skill = (
-                translation_skill
-                if translation_skill is not None
-                else TranslationSkill(
-                    OpenAITranslationProvider(),
-                )
-            )
+        self.translation_skill = translation_skill
+        self.speech_skill = speech_skill
+        self.speech_to_text_skill = speech_to_text_skill
 
-            self.speech_skill = (
-                speech_skill
-                if speech_skill is not None
-                else SpeechSkill(
-                    OpenAISpeechProvider(),
-                )
-            )
 
-            self.speech_to_text_skill = (
-                speech_to_text_skill
-                if speech_to_text_skill is not None
-                else SpeechToTextSkill(
-                    OpenAISpeechToTextProvider(),
-                )
-            )
+
 
     @property
     def name(self) -> str:

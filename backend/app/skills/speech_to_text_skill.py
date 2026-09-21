@@ -1,5 +1,5 @@
-from app.providers.openai_provider import (
-    OpenAISpeechToTextProvider,
+from app.providers.speech_to_text_provider import (
+    SpeechToTextProvider,
 )
 
 
@@ -7,7 +7,7 @@ class SpeechToTextSkill:
 
     def __init__(
         self,
-        provider: OpenAISpeechToTextProvider,
+        provider: SpeechToTextProvider,
     ) -> None:
         self.provider = provider
 
