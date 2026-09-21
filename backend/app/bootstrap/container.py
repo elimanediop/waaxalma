@@ -10,6 +10,15 @@ from app.core.config import (
 
 from app.orchestration.agent_orchestrator import AgentOrchestrator
 
+from app.pipelines.sequential_pipeline import SequentialPipeline
+from app.pipelines.stages.speech_stage import SpeechStage
+from app.pipelines.stages.transcription_stage import (
+    TranscriptionStage,
+)
+from app.pipelines.stages.translation_stage import (
+    TranslationStage,
+)
+
 from app.providers.openai_provider import (
     OpenAISpeechProvider,
     OpenAISpeechToTextProvider,
@@ -17,10 +26,13 @@ from app.providers.openai_provider import (
 )
 
 from app.registry.agent_registry import AgentRegistry
+from app.registry.pipeline_registry import PipelineRegistry
 from app.registry.provider_registry import ProviderRegistry
+
 from app.skills.speech_skill import SpeechSkill
 from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
+
 
 def build_provider_registry() -> ProviderRegistry:
     registry = ProviderRegistry()
@@ -46,6 +58,48 @@ def build_provider_registry() -> ProviderRegistry:
     return registry
 
 
+def build_pipeline_registry(
+    *,
+    translation_skill: TranslationSkill,
+    speech_skill: SpeechSkill,
+    speech_to_text_skill: SpeechToTextSkill,
+) -> PipelineRegistry:
+    registry = PipelineRegistry()
+
+    registry.register(
+        SequentialPipeline(
+            name="interpreter.text",
+            stages=[
+                TranslationStage(
+                    translation_skill=translation_skill,
+                ),
+                SpeechStage(
+                    speech_skill=speech_skill,
+                ),
+            ],
+        )
+    )
+
+    registry.register(
+        SequentialPipeline(
+            name="interpreter.audio",
+            stages=[
+                TranscriptionStage(
+                    speech_to_text_skill=speech_to_text_skill,
+                ),
+                TranslationStage(
+                    translation_skill=translation_skill,
+                ),
+                SpeechStage(
+                    speech_skill=speech_skill,
+                ),
+            ],
+        )
+    )
+
+    return registry
+
+
 def build_agent_registry(
     provider_registry: ProviderRegistry,
     translation_provider_name: str = TRANSLATION_PROVIDER,
@@ -54,6 +108,7 @@ def build_agent_registry(
 ) -> AgentRegistry:
     registry = AgentRegistry()
 
+    # Resolve configured providers
     translation_provider = provider_registry.get(
         capability="translation",
         name=translation_provider_name,
@@ -69,6 +124,7 @@ def build_agent_registry(
         name=speech_to_text_provider_name,
     )
 
+    # Build skills
     translation_skill = TranslationSkill(
         provider=translation_provider,
     )
@@ -81,6 +137,14 @@ def build_agent_registry(
         provider=speech_to_text_provider,
     )
 
+    # Build and register pipelines
+    pipeline_registry = build_pipeline_registry(
+        translation_skill=translation_skill,
+        speech_skill=speech_skill,
+        speech_to_text_skill=speech_to_text_skill,
+    )
+
+    # Register translation agent
     registry.register(
         TranslationAgent(
             translation_skill=translation_skill,
@@ -88,11 +152,15 @@ def build_agent_registry(
         )
     )
 
+    # Register interpreter agent using pipelines
     registry.register(
         InterpreterAgent(
-            translation_skill=translation_skill,
-            speech_skill=speech_skill,
-            speech_to_text_skill=speech_to_text_skill,
+            text_pipeline=pipeline_registry.get(
+                "interpreter.text"
+            ),
+            audio_pipeline=pipeline_registry.get(
+                "interpreter.audio"
+            ),
         )
     )
 
@@ -106,6 +174,10 @@ def build_orchestrator(
         registry=registry,
     )
 
+
+# ------------------------------------------------------------------
+# Application composition root
+# ------------------------------------------------------------------
 
 provider_registry = build_provider_registry()
 
