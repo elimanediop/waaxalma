@@ -3,6 +3,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+TRANSLATION_PROVIDER = os.getenv(
+    "TRANSLATION_PROVIDER",
+    "openai",
+).strip().lower()
+
+SPEECH_PROVIDER = os.getenv(
+    "SPEECH_PROVIDER",
+    "openai",
+).strip().lower()
+
+SPEECH_TO_TEXT_PROVIDER = os.getenv(
+    "SPEECH_TO_TEXT_PROVIDER",
+    "openai",
+).strip().lower()
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 OPENAI_TRANSLATION_MODEL = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")

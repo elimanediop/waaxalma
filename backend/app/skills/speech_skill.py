@@ -1,13 +1,10 @@
-from app.providers.openai_provider import (
-    OpenAISpeechProvider,
-)
-
+from app.providers.speech_provider import SpeechProvider
 
 class SpeechSkill:
 
     def __init__(
         self,
-        provider: OpenAISpeechProvider,
+        provider: SpeechProvider,
     ) -> None:
         self.provider = provider
 

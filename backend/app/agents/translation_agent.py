@@ -5,10 +5,6 @@ from app.core.agent_input import AgentInput
 from app.core.agent_result import AgentResult
 from app.core.session_context import SessionContext
 from app.core.config import STATIC_AUDIO_URL_PREFIX
-from app.providers.openai_provider import (
-    OpenAITranslationProvider,
-    OpenAISpeechProvider,
-)
 from app.skills.translation_skill import TranslationSkill
 from app.skills.speech_skill import SpeechSkill
 
@@ -18,24 +14,12 @@ class TranslationAgent(BaseAgent):
 
     def __init__(
         self,
-        translation_skill: TranslationSkill | None = None,
-        speech_skill: SpeechSkill | None = None,
+        translation_skill: TranslationSkill,
+        speech_skill: SpeechSkill,
     ) -> None:
-        self.translation_skill = (
-            translation_skill
-            if translation_skill is not None
-            else TranslationSkill(
-                OpenAITranslationProvider()
-            )
-        )
+        self.translation_skill = translation_skill
+        self.speech_skill = speech_skill
 
-        self.speech_skill = (
-            speech_skill
-            if speech_skill is not None
-            else SpeechSkill(
-                OpenAISpeechProvider()
-            )
-        )
 
     @property
     def name(self) -> str:

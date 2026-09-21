@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.models.request_models import CreateSessionRequest
 from app.models.response_models import CreateSessionResponse
 from app.sessions.session_manager import session_manager
-from app.agents.agent_manager import agent_manager
+from app.bootstrap.container import agent_manager
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 

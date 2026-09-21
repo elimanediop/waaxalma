@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.agents.agent_manager import agent_manager
+from app.bootstrap.container import agent_manager
 from app.core.agent_execution_factory import AgentExecutionFactory
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.pipeline_exception import PipelineException
