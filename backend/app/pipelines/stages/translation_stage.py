@@ -21,7 +21,13 @@ class TranslationStage:
         state: PipelineState,
         context: SessionContext,
     ) -> PipelineState:
-        source_text = state.require("source_text")
+        source_text = state.require(
+            "source_text"
+        )
+        translation_input = state.get(
+            "enriched_text",
+            source_text,
+        )
         agent_name = state.require("agent_name")
 
         target_language = state.get(
@@ -36,7 +42,7 @@ class TranslationStage:
             operation="translate",
             provider=self._translation_skill.provider_name,
             call=lambda: self._translation_skill.execute(
-                text=source_text,
+                text=translation_input,
                 target_language=target_language,
             ),
         )

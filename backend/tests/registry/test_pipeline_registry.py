@@ -139,3 +139,31 @@ def test_pipeline_names_are_sorted() -> None:
         "interpreter.text",
         "translation.text",
     ]
+
+def test_custom_pipeline_can_be_registered() -> None:
+    registry = PipelineRegistry()
+
+    pipeline = SequentialPipeline(
+        name="custom.workflow",
+        stages=[
+            FakeStage(
+                name="custom-stage",
+            ),
+        ],
+    )
+
+    registry.register(
+        pipeline
+    )
+
+    assert registry.contains(
+        "custom.workflow"
+    )
+
+    assert (
+        registry
+        .get("custom.workflow")
+        .stage_names
+    ) == [
+        "custom-stage",
+    ]

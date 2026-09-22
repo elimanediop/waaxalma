@@ -13,6 +13,10 @@ from app.pipelines.stages.transcription_stage import (
 from app.pipelines.stages.translation_stage import (
     TranslationStage,
 )
+from app.core.context_result import ContextResult
+from app.core.quality_result import QualityResult
+from app.pipelines.stages.context_stage import ContextStage
+from app.pipelines.stages.quality_stage import QualityStage
 
 
 def create_skill(
@@ -234,3 +238,180 @@ async def test_audio_interpreter_pipeline() -> None:
         "translation",
         "speech",
     ]
+
+@pytest.mark.asyncio
+async def test_context_stage_enriches_pipeline_state() -> None:
+    skill = create_skill(
+        provider_name="fake-context",
+    )
+
+    skill.execute.return_value = ContextResult(
+        original_text="Naka nga def?",
+        enriched_text="[context] Naka nga def?",
+        metadata={
+            "topic": "greeting",
+        },
+    )
+
+    stage = ContextStage(
+        context_skill=skill,
+    )
+
+    state = PipelineState(
+        data={
+            "agent_name": "interpreter",
+            "source_text": "Naka nga def?",
+            "context_metadata": {
+                "topic": "greeting",
+            },
+        }
+    )
+
+    context = SessionContext(
+        session_id="context-stage-test",
+    )
+
+    result = await stage.execute(
+        state=state,
+        context=context,
+    )
+
+    assert (
+        result.require("source_text")
+        == "Naka nga def?"
+    )
+
+    assert (
+        result.require("enriched_text")
+        == "[context] Naka nga def?"
+    )
+
+    assert result.require(
+        "context_metadata"
+    ) == {
+        "topic": "greeting",
+    }
+
+    skill.execute.assert_awaited_once_with(
+        text="Naka nga def?",
+        metadata={
+            "topic": "greeting",
+        },
+    )
+
+    assert (
+        context.trace.stages[-1].stage
+        == "context"
+    )
+
+
+@pytest.mark.asyncio
+async def test_quality_stage_adds_evaluation_to_pipeline_state() -> None:
+    skill = create_skill(
+        provider_name="fake-quality",
+    )
+
+    skill.execute.return_value = QualityResult(
+        accepted=True,
+        score=None,
+        issues=[],
+        metadata={
+            "evaluation": "deterministic",
+            "semantic_evaluation": False,
+        },
+    )
+
+    stage = QualityStage(
+        quality_skill=skill,
+    )
+
+    state = PipelineState(
+        data={
+            "agent_name": "interpreter",
+            "source_text": "Naka nga def?",
+            "interpreted_text": "How are you?",
+            "target_language": "English",
+        }
+    )
+
+    context = SessionContext(
+        session_id="quality-stage-test",
+        target_language="English",
+    )
+
+    result = await stage.execute(
+        state=state,
+        context=context,
+    )
+
+    assert (
+        result.require("quality_accepted")
+        is True
+    )
+
+    assert (
+        result.get("quality_score")
+        is None
+    )
+
+    assert result.require(
+        "quality_issues"
+    ) == []
+
+    assert result.require(
+        "quality_metadata"
+    ) == {
+        "evaluation": "deterministic",
+        "semantic_evaluation": False,
+    }
+
+    skill.execute.assert_awaited_once_with(
+        source_text="Naka nga def?",
+        interpreted_text="How are you?",
+        target_language="English",
+    )
+
+    assert (
+        context.trace.stages[-1].stage
+        == "quality"
+    )
+
+@pytest.mark.asyncio
+async def test_translation_stage_prefers_enriched_text() -> None:
+    skill = create_skill(
+        provider_name="fake-translation",
+        result="How are you?",
+    )
+
+    stage = TranslationStage(
+        translation_skill=skill,
+    )
+
+    state = PipelineState(
+        data={
+            "agent_name": "interpreter",
+            "source_text": "Original text",
+            "enriched_text": "Context enriched text",
+            "target_language": "English",
+        }
+    )
+
+    context = SessionContext(
+        session_id="enriched-translation-test",
+        target_language="English",
+    )
+
+    result = await stage.execute(
+        state=state,
+        context=context,
+    )
+
+    assert (
+        result.require("interpreted_text")
+        == "How are you?"
+    )
+
+    skill.execute.assert_awaited_once_with(
+        text="Context enriched text",
+        target_language="English",
+    )
