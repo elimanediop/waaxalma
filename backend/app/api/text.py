@@ -3,7 +3,8 @@ import uuid
 from app.core.agent_execution_factory import AgentExecutionFactory
 from fastapi import APIRouter, HTTPException
 
-from app.agents.agent_manager import agent_manager
+from app.bootstrap.container import agent_manager
+from app.registry.agent_registry import AgentRegistry
 from app.orchestration.agent_orchestrator import AgentOrchestrator
 from app.agents.translation_agent import TranslationAgent
 from app.core.agent_input import AgentInput
@@ -15,17 +16,30 @@ from app.models.response_models import (
     SpeakTextResponse,
     TranslateAndSpeakResponse,
 )
+from app.skills import speech_skill, translation_skill
 
 router = APIRouter(prefix="/api/text", tags=["text"])
 
 # Existing instance kept temporarily for the routes not yet migrated.
-translation_agent = TranslationAgent()
-
-# New orchestration entry point.
-agent_orchestrator = AgentOrchestrator(
-    agents=agent_manager.get_all(),
+TranslationAgent(
+    translation_skill=translation_skill,
+    speech_skill=speech_skill,
 )
 
+def build_agent_registry() -> AgentRegistry:
+    registry = AgentRegistry()
+
+    for agent in agent_manager.get_all().values():
+        registry.register(agent)
+
+    return registry
+
+
+agent_registry = build_agent_registry()
+
+agent_orchestrator = AgentOrchestrator(
+    registry=agent_registry,
+)
 
 @router.post(
     "/translate",

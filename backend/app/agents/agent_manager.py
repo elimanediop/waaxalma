@@ -1,37 +1,54 @@
 from app.agents.base_agent import BaseAgent
-from app.agents.translation_agent import TranslationAgent
-from app.agents.interpreter_agent import InterpreterAgent
+from app.registry.agent_registry import AgentRegistry
 
 
 class AgentManager:
-    def __init__(self):
-        self._agents: dict[str, BaseAgent] = {}
+    """
+    Read-only facade over the AgentRegistry.
 
-        self.register(TranslationAgent())
-        self.register(InterpreterAgent())
+    Agent construction and registration belong to the
+    application composition root.
+    """
 
-    def register(self, agent: BaseAgent) -> None:
-        self._agents[agent.name] = agent
+    def __init__(
+        self,
+        registry: AgentRegistry,
+    ) -> None:
+        self._registry = registry
 
-    def get(self, agent_name: str) -> BaseAgent:
-        agent = self._agents.get(agent_name)
+    def get_agent(
+        self,
+        name: str,
+    ) -> BaseAgent | None:
+        return self._registry.find(name)
 
-        if agent is None:
-            raise ValueError(f"Unknown agent: {agent_name}")
-
-        return agent
+    def get_all(
+        self,
+    ) -> dict[str, BaseAgent]:
+        return {
+            name: agent
+            for name in self._registry.names()
+            if (agent := self._registry.find(name)) is not None
+        }
 
     def list_agents(self) -> list[dict]:
-        return [
-            {
-                "type": agent_name,
-                **agent.info(),
-            }
-            for agent_name, agent in self._agents.items()
-        ]
-    
-    def get_all(self) -> dict[str, BaseAgent]:
-        return self._agents.copy()
+        agents = []
 
+        for name in self._registry.names():
+            agent = self._registry.find(name)
 
-agent_manager = AgentManager()
+            if agent is None:
+                continue
+
+            agents.append(
+                {
+                    "name": agent.name,
+                    "description": getattr(
+                        agent,
+                        "description",
+                        "",
+                    ),
+                }
+            )
+
+        return agents

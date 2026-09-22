@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.agents.agent_manager import agent_manager
+from app.bootstrap.container import agent_manager
 from app.core.agent_execution_factory import AgentExecutionFactory
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.pipeline_exception import PipelineException
@@ -9,15 +9,28 @@ from app.models.response_models import InterpretTextResponse
 from app.orchestration.agent_orchestrator import AgentOrchestrator
 from app.orchestration.result_handler import require_agent_output
 from app.sessions.session_manager import session_manager
+from app.registry.agent_registry import AgentRegistry
 
 router = APIRouter(
     prefix="/api/interpreter",
     tags=["interpreter"],
 )
 
+def build_agent_registry() -> AgentRegistry:
+    registry = AgentRegistry()
+
+    for agent in agent_manager.get_all().values():
+        registry.register(agent)
+
+    return registry
+
+
+agent_registry = build_agent_registry()
+
 agent_orchestrator = AgentOrchestrator(
-    agents=agent_manager.get_all(),
+    registry=agent_registry,
 )
+
 
 
 @router.post(

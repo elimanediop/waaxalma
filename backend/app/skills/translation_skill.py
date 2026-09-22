@@ -1,13 +1,11 @@
-from app.providers.openai_provider import (
-    OpenAITranslationProvider,
-)
+from app.providers.translation_provider import TranslationProvider
 
 
 class TranslationSkill:
 
     def __init__(
         self,
-        provider: OpenAITranslationProvider,
+        provider: TranslationProvider,
     ) -> None:
         self.provider = provider
 

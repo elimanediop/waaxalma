@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from starlette import status
 
-from app.agents.agent_manager import agent_manager
+from app.bootstrap.container import agent_manager
 from app.core.agent_execution_factory import AgentExecutionFactory
 from app.core.config import UPLOAD_DIR
 from app.exceptions.error_codes import ErrorCode
@@ -17,12 +17,25 @@ from app.validation.audio_validator import (
     ValidatedAudio,
 )
 from app.orchestration.result_handler import require_agent_output
+from app.registry.agent_registry import AgentRegistry
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
+def build_agent_registry() -> AgentRegistry:
+    registry = AgentRegistry()
+
+    for agent in agent_manager.get_all().values():
+        registry.register(agent)
+
+    return registry
+
+
+agent_registry = build_agent_registry()
+
 agent_orchestrator = AgentOrchestrator(
-    agents=agent_manager.get_all(),
+    registry=agent_registry,
 )
+
 
 audio_validator = AudioValidator(
     upload_dir=UPLOAD_DIR,
