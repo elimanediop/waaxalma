@@ -2,9 +2,9 @@
 
 > **Speak for me.**
 
-Waaxalma is an open-source AI Voice Agent Framework designed to enable natural multilingual communication through intelligent and composable voice agents.
+Waaxalma is an open-source AI Voice Agent Framework designed to enable natural multilingual communication through intelligent, composable, and observable voice agents.
 
-Its mission is to help people communicate seamlessly across languages by combining speech recognition, translation, conversational intelligence, and speech synthesis within a modular, observable, and extensible framework.
+Its mission is to help people communicate seamlessly across languages by combining speech recognition, translation, contextual processing, quality evaluation, and speech synthesis within a modular and extensible framework.
 
 ---
 
@@ -15,9 +15,14 @@ Its mission is to help people communicate seamlessly across languages by combini
 - 🔊 Text-to-Speech
 - 🤖 Multi-agent architecture
 - 🧩 Skills-based design
-- 🔌 Provider abstraction
+- 🔌 Provider abstraction and interchangeability
+- 🗂️ Agent, provider, and pipeline registries
+- 🔀 Configurable text and audio pipelines
+- 🧠 Context capability
+- ✅ Quality evaluation capability
 - 💬 Session-aware execution
 - 🔄 Unified agent orchestration
+- 🌐 Generic agent execution API
 - 🛡️ Audio input validation
 - ⏱️ Provider timeouts
 - 🔁 Selective retries with exponential backoff
@@ -25,67 +30,149 @@ Its mission is to help people communicate seamlessly across languages by combini
 - 📊 Prometheus metrics
 - 🚀 FastAPI backend
 - 🖥️ Streamlit client
-- ✅ Automated resilience tests
+- ✅ Automated resilience, composition, and framework tests
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Framework Architecture
 
 ```text
 Clients
 (Streamlit / REST API)
-
         │
         ▼
-
-API Layer
+Generic API
 (FastAPI routes, validation, error handlers)
-
         │
         ▼
-
-Agent Orchestrator
-(Unified execution entry point)
-
-        │
-        ├── SessionContext
-        ├── ExecutionTrace
-        └── AgentResult
-
+AgentOrchestrator
         │
         ▼
-
-Agent Layer
-(InterpreterAgent, TranslationAgent)
-
+AgentRegistry
         │
         ▼
-
-Skills Layer
-(STT, Translation, TTS)
-
+Agents
         │
         ▼
-
-Resilience Layer
-(Timeouts, retries, backoff, error normalization)
-
+PipelineRegistry
         │
         ▼
-
-Provider Layer
-(OpenAI today, more providers planned)
-
+Configurable Pipelines
         │
         ▼
-
-Observability
-(Logs, traces, stage latency, Prometheus metrics)
+Pipeline Stages
+(Context / STT / Translation / Quality / Speech)
+        │
+        ▼
+Skills
+        │
+        ▼
+Provider Contracts
+        │
+        ▼
+ProviderRegistry
+        │
+        ▼
+Concrete Providers
+(OpenAI / passthrough / deterministic / future providers)
 ```
 
-### Execution flow
+`SessionContext`, execution tracing, error normalization, resilience controls, and metrics are cross-cutting concerns shared across the execution path.
 
-For an audio interpretation request, the current pipeline is:
+### Agent extensibility
+
+Agents are registered through `AgentRegistry` and executed through `AgentOrchestrator`.
+
+The generic endpoint:
+
+```text
+POST /api/agents/{agent_name}/execute
+```
+
+contains no agent-specific routing logic. Adding a new registered agent does not require a new FastAPI route or a change to the orchestration core.
+
+### Provider extensibility
+
+Skills depend on provider contracts instead of concrete implementations. Providers are resolved through `ProviderRegistry` by:
+
+```text
+capability + provider name
+```
+
+Default v0.4 provider mapping:
+
+```text
+translation      / openai
+speech           / openai
+speech_to_text   / openai
+context          / passthrough
+quality          / deterministic
+```
+
+This allows a provider implementation to be swapped through configuration without modifying the Skill, Agent, API, or `AgentOrchestrator`.
+
+### Configurable pipelines
+
+Interpreter workflows are composed with `SequentialPipeline` and registered through `PipelineRegistry`.
+
+Text interpretation:
+
+```text
+Context
+  → Translation
+  → Quality
+  → Speech
+```
+
+Audio interpretation:
+
+```text
+Transcription
+  → Context
+  → Translation
+  → Quality
+  → Speech
+```
+
+Pipeline order is explicit and testable. New stages can be added without embedding orchestration logic inside `InterpreterAgent`.
+
+### Context and Quality
+
+v0.4 introduces Context and Quality as first-class framework capabilities.
+
+The default configuration adds **no additional LLM call**:
+
+```dotenv
+CONTEXT_PROVIDER=passthrough
+QUALITY_PROVIDER=deterministic
+```
+
+`PassthroughContextProvider` preserves the original text while keeping contextual processing as a replaceable pipeline capability.
+
+`DeterministicQualityProvider` performs structural checks without claiming semantic translation evaluation. The quality result is exposed in interpreter responses:
+
+```json
+{
+  "quality": {
+    "accepted": true,
+    "score": null,
+    "issues": [],
+    "metadata": {
+      "evaluation": "deterministic",
+      "semantic_evaluation": false,
+      "target_language": "English"
+    }
+  }
+}
+```
+
+A future semantic evaluator can replace the deterministic provider without changing the pipeline contract.
+
+---
+
+## 🔄 Execution Flow
+
+### Audio interpretation
 
 ```text
 Audio input
@@ -94,25 +181,52 @@ Audio input
 Audio validation
     │
     ▼
-Speech-to-Text
+TranscriptionStage
     │
     ▼
-Translation
+ContextStage
     │
     ▼
-Text-to-Speech
+TranslationStage
     │
     ▼
-Generated audio response
+QualityStage
+    │
+    ▼
+SpeechStage
+    │
+    ▼
+Generated audio + quality metadata
 ```
 
-Each stage is traced independently and associated with a session and a unique trace identifier.
+### Text interpretation
+
+```text
+Text input
+    │
+    ▼
+ContextStage
+    │
+    ▼
+TranslationStage
+    │
+    ▼
+QualityStage
+    │
+    ▼
+SpeechStage
+    │
+    ▼
+Generated audio + quality metadata
+```
+
+Each stage is independently traceable and associated with the same session and trace identifier.
 
 ---
 
 ## 🛡️ Reliability
 
-Waaxalma v0.3.0 introduces a reliability layer around agent and provider execution.
+Waaxalma v0.3.0 introduced the reliability layer that remains part of the v0.4 framework foundation.
 
 ### Audio validation
 
@@ -138,7 +252,7 @@ Provider calls support:
 - Normalized provider exceptions
 - Cancellation propagation
 
-OpenAI SDK retries are disabled so that retry behavior remains centralized and predictable within Waaxalma.
+OpenAI SDK retries are disabled so retry behavior remains centralized and predictable within Waaxalma.
 
 ### Error normalization
 
@@ -181,13 +295,14 @@ Every agent execution is correlated using:
 - Agent name
 - Operation name
 
-The pipeline records:
+The execution path records:
 
 - Total agent execution duration
 - Per-stage duration
 - Stage success or failure
 - Provider retry count
 - Error code and failure stage
+- Context and quality stage execution
 
 Prometheus metrics are exposed through:
 
@@ -209,39 +324,33 @@ waaxalma_provider_retries_total
 
 ## 🚀 Current Status
 
-### v0.3.0 — Reliability
+### v0.4.0 — Framework Next
 
-The reliability milestone is complete.
+The framework extensibility milestone is complete.
 
 Implemented and validated:
 
-- Unified execution through `AgentOrchestrator`
-- Session-aware execution through `SessionContext`
-- Audio validation
-- Centralized API error handling
-- Asynchronous providers and skills
-- Timeouts and selective retries
-- Provider error normalization
-- Pipeline tracing
-- Per-stage latency metrics
-- Prometheus metrics endpoint
-- Automated resilience and partial-failure tests
+- `AgentRegistry` as the source of truth for agents
+- Generic agent execution API
+- Provider contracts based on structural typing
+- `ProviderRegistry` with capability + provider-name resolution
+- Configuration-driven provider selection
+- Interchangeable provider implementations
+- `PipelineState` and `PipelineStage` contracts
+- `SequentialPipeline`
+- `PipelineRegistry`
+- Configurable text and audio interpreter pipelines
+- `ContextAgent` and `QualityAgent`
+- `ContextStage` and `QualityStage`
+- `PassthroughContextProvider`
+- `DeterministicQualityProvider`
+- Quality information exposed in interpreter responses
+- Fail-fast behavior for unknown providers and pipelines
+- Framework composition tests preserving v0.3 reliability behavior
 
-The current automated test suite covers:
+The central v0.4 principle is:
 
-- Successful execution
-- Provider timeout
-- Retry followed by success
-- Retry exhaustion
-- Provider unavailability
-- Non-retryable provider errors
-- Successful audio pipeline execution
-- Partial pipeline failure
-- HTTP error mapping
-
-```text
-13 tests passed
-```
+> **Add an agent, provider, or pipeline capability without changing the API or orchestration core.**
 
 ---
 
@@ -283,7 +392,6 @@ From the repository root:
 
 ```powershell
 .\backend\.venv\Scripts\Activate.ps1
-
 python -m streamlit run streamlit/streamlit_app.py
 ```
 
@@ -297,29 +405,50 @@ From the `backend` directory:
 python -m pytest -q
 ```
 
-Run the reliability tests only:
+Run resilience tests only:
 
 ```powershell
 python -m pytest tests/resilience -v
 ```
 
-Run the interpreter pipeline tests:
+Run interpreter pipeline tests:
 
 ```powershell
 python -m pytest tests/agents/test_interpreter_pipeline.py -v
 ```
 
+Run pipeline tests:
+
+```powershell
+python -m pytest tests/pipelines -v
+```
+
+Run framework composition tests:
+
+```powershell
+python -m pytest tests/bootstrap/test_provider_composition.py -v
+```
+
 ---
 
-## ⚙️ Reliability Configuration
+## ⚙️ Configuration
 
-Provider resilience can be configured through environment variables:
+### Provider selection
+
+```dotenv
+TRANSLATION_PROVIDER=openai
+SPEECH_PROVIDER=openai
+SPEECH_TO_TEXT_PROVIDER=openai
+CONTEXT_PROVIDER=passthrough
+QUALITY_PROVIDER=deterministic
+```
+
+### Reliability configuration
 
 ```dotenv
 STT_TIMEOUT_SECONDS=30
 TRANSLATION_TIMEOUT_SECONDS=20
 TTS_TIMEOUT_SECONDS=30
-
 PROVIDER_MAX_ATTEMPTS=3
 PROVIDER_INITIAL_BACKOFF_SECONDS=0.5
 PROVIDER_BACKOFF_MULTIPLIER=2.0
@@ -340,21 +469,21 @@ It includes:
 - Architecture & Vision Book
 - Technical roadmap
 - Version-aligned milestones
-- Future Architecture Decision Records
-- Agent and provider design documentation
+- Architecture Decision Records
+- Agent, pipeline, and provider design documentation
 
 ---
 
 ## 🗺️ Roadmap
 
-| Repository Version | Milestone | Focus |
-|---|---|---|
-| **v0.1.0** | Prototype | Voice → Translation → Speech proof of concept |
-| **v0.2.0** | Agent Orchestration | Unified execution pipeline, `AgentOrchestrator`, `SessionContext`, agent contracts |
-| **v0.3.0** | Reliability | Validation, async execution, retries, timeouts, tracing, metrics, resilience tests |
-| **v0.4.0** | Provider Abstraction & Extensibility | Specialized agents, interchangeable providers, configurable pipelines |
-| **v0.5.0** | Product Readiness | Persistent sessions, security, packaging, CI/CD, production observability |
-| **v1.0.0** | Stable Framework | Production-ready open-source voice agent framework |
+| Repository Version | Milestone | Focus | Status |
+|---|---|---|---|
+| **v0.1.0** | Prototype | Voice → Translation → Speech proof of concept | Released |
+| **v0.2.0** | Agent Orchestration | Unified execution, `AgentOrchestrator`, `SessionContext`, agent contracts | Released |
+| **v0.3.0** | Reliability | Validation, async execution, retries, timeouts, tracing, metrics | Released |
+| **v0.4.0** | Framework Next | Registries, interchangeable providers, configurable pipelines, Context & Quality | Current |
+| **v0.5.0** | Product Readiness | Persistent sessions, security, packaging, CI/CD, production observability | Next |
+| **v1.0.0** | Stable Framework | Production-ready open-source voice agent framework | Target |
 
 ---
 
@@ -370,7 +499,7 @@ It includes:
 
 Waaxalma is under active development.
 
-Contributions related to agents, providers, multilingual support, testing, observability, documentation, and developer experience are welcome.
+Contributions related to agents, providers, pipelines, multilingual support, testing, observability, documentation, and developer experience are welcome.
 
 Before submitting a change:
 
@@ -378,7 +507,7 @@ Before submitting a change:
 python -m pytest -q
 ```
 
-Please ensure that new provider or pipeline behavior includes appropriate automated tests.
+Please ensure that new agent, provider, stage, or pipeline behavior includes appropriate automated tests.
 
 ---
 
