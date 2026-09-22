@@ -593,3 +593,35 @@ async def test_interpreter_exposes_rejected_quality() -> None:
             "evaluation": "deterministic",
         },
     }
+
+def test_unknown_context_provider_fails_fast() -> None:
+    provider_registry = build_fake_provider_registry()
+
+    with pytest.raises(
+        KeyError,
+        match="not registered",
+    ):
+        build_agent_registry(
+            provider_registry=provider_registry,
+            translation_provider_name="fake",
+            speech_provider_name="fake",
+            speech_to_text_provider_name="fake",
+            context_provider_name="unknown",
+            quality_provider_name="fake",
+        )
+
+def test_unknown_quality_provider_fails_fast() -> None:
+    provider_registry = build_fake_provider_registry()
+
+    with pytest.raises(
+        KeyError,
+        match="not registered",
+    ):
+        build_agent_registry(
+            provider_registry=provider_registry,
+            translation_provider_name="fake",
+            speech_provider_name="fake",
+            speech_to_text_provider_name="fake",
+            context_provider_name="fake",
+            quality_provider_name="unknown",
+        )
