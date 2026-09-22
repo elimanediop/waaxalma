@@ -168,15 +168,42 @@ class InterpreterAgent(BaseAgent):
         state: PipelineState,
         context: SessionContext,
     ) -> dict[str, Any]:
+        quality = None
+
+        if state.get("quality_accepted") is not None:
+            quality = {
+                "accepted": state.get(
+                    "quality_accepted"
+                ),
+                "score": state.get(
+                    "quality_score"
+                ),
+                "issues": state.get(
+                    "quality_issues",
+                    [],
+                ),
+                "metadata": state.get(
+                    "quality_metadata",
+                    {},
+                ),
+            }
+
         return {
-            "request_id": state.require("request_id"),
+            "request_id": state.require(
+                "request_id"
+            ),
             "session_id": context.session_id,
             "agent": self.name,
-            "source_text": state.require("source_text"),
+            "source_text": state.require(
+                "source_text"
+            ),
             "interpreted_text": state.require(
                 "interpreted_text"
             ),
-            "audio_url": state.require("audio_url"),
+            "audio_url": state.require(
+                "audio_url"
+            ),
+            "quality": quality,
         }
 
     def _build_metadata(

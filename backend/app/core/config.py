@@ -18,6 +18,16 @@ SPEECH_TO_TEXT_PROVIDER = os.getenv(
     "openai",
 ).strip().lower()
 
+CONTEXT_PROVIDER = os.getenv(
+    "CONTEXT_PROVIDER",
+    "passthrough",
+).strip().lower()
+
+QUALITY_PROVIDER = os.getenv(
+    "QUALITY_PROVIDER",
+    "deterministic",
+).strip().lower()
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 OPENAI_TRANSLATION_MODEL = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
