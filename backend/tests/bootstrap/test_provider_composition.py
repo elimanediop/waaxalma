@@ -3,6 +3,7 @@ import pytest
 from app.bootstrap.container import (
     build_agent_registry,
     build_pipeline_registry,
+    build_provider_registry,
 )
 from app.core.agent_input import AgentInput
 from app.core.context_result import ContextResult
@@ -625,3 +626,18 @@ def test_unknown_quality_provider_fails_fast() -> None:
             context_provider_name="fake",
             quality_provider_name="unknown",
         )
+
+def test_openai_realtime_provider_is_registered() -> None:
+    registry = build_provider_registry()
+
+    assert registry.contains(
+        capability="realtime_translation",
+        name="openai",
+    )
+
+    provider = registry.get(
+        capability="realtime_translation",
+        name="openai",
+    )
+
+    assert provider.name == "openai"

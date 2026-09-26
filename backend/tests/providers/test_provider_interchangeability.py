@@ -9,6 +9,11 @@ class FakeTranslationProvider:
     def name(self) -> str:
         return "fake"
 
+        
+    @property
+    def model(self) -> str:
+        return "fake-realtime-model"
+
     async def translate(
         self,
         text: str,

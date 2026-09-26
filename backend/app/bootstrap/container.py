@@ -6,7 +6,10 @@ from app.agents.quality_agent import QualityAgent
 
 from app.core.config import (
     CONTEXT_PROVIDER,
+    OPENAI_API_KEY,
     QUALITY_PROVIDER,
+    REALTIME_TRANSLATION_MODEL,
+    REALTIME_TRANSLATION_PROVIDER,
     SPEECH_PROVIDER,
     SPEECH_TO_TEXT_PROVIDER,
     TRANSLATION_PROVIDER,
@@ -38,6 +41,10 @@ from app.providers.passthrough_context_provider import (
     PassthroughContextProvider,
 )
 
+from app.providers.openai_realtime_translation_provider import (
+    OpenAIRealtimeTranslationProvider,
+)
+
 from app.registry.agent_registry import AgentRegistry
 from app.registry.pipeline_registry import PipelineRegistry
 from app.registry.provider_registry import ProviderRegistry
@@ -47,6 +54,10 @@ from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
 from app.skills.context_skill import ContextSkill
 from app.skills.quality_skill import QualitySkill
+
+from app.services.realtime_translation_service import (
+    RealtimeTranslationService,
+)
 
 
 
@@ -84,6 +95,15 @@ def build_provider_registry() -> ProviderRegistry:
         name="deterministic",
         provider=DeterministicQualityProvider(),
     )
+
+    registry.register(
+    capability="realtime_translation",
+    name="openai",
+    provider=OpenAIRealtimeTranslationProvider(
+        api_key=OPENAI_API_KEY,
+        model=REALTIME_TRANSLATION_MODEL,
+    ),
+)
 
     return registry
 
@@ -260,6 +280,11 @@ def build_orchestrator(
 # ------------------------------------------------------------------
 
 provider_registry = build_provider_registry()
+
+realtime_translation_service = RealtimeTranslationService(
+    provider_registry=provider_registry,
+    provider_name=REALTIME_TRANSLATION_PROVIDER,
+)
 
 agent_registry = build_agent_registry(
     provider_registry=provider_registry,

@@ -8,6 +8,12 @@ from starlette import status
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.pipeline_exception import PipelineException
 
+from fastapi.encoders import jsonable_encoder
+
+from app.core.realtime_exceptions import (
+    RealtimeTranslationException,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,25 +43,25 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        logger.warning(
-            "Request validation failed method=%s path=%s errors=%s",
-            request.method,
-            request.url.path,
+        errors = jsonable_encoder(
             exc.errors(),
+            custom_encoder={
+                Exception: str,
+            },
         )
 
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={
                 "detail": {
-                    "code": ErrorCode.INVALID_INPUT.value,
-                    "message": "The request payload is invalid.",
+                    "code": "REQUEST_VALIDATION_ERROR",
+                    "message": "Request validation failed.",
                     "details": {
-                        "errors": exc.errors(),
+                        "errors": errors,
                     },
-                },
+                }
             },
-        )
+    )
 
     @app.exception_handler(Exception)
     async def unexpected_exception_handler(
@@ -76,5 +82,34 @@ def register_exception_handlers(app: FastAPI) -> None:
                     "code": ErrorCode.PIPELINE_ERROR.value,
                     "message": "An unexpected internal error occurred.",
                 },
+            },
+        )
+async def realtime_translation_exception_handler(
+        request: Request,
+        exc: RealtimeTranslationException,
+    ) -> JSONResponse:
+        logger.warning(
+            "Realtime translation failed "
+            "method=%s path=%s code=%s provider=%s retryable=%s",
+            request.method,
+            request.url.path,
+            exc.code,
+            exc.provider,
+            exc.retryable,
+        )
+
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "detail": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "details": {
+                        "provider":
+                            exc.provider,
+                        "retryable":
+                            exc.retryable,
+                    },
+                }
             },
         )
