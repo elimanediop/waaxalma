@@ -18,9 +18,44 @@ from app.core.config import (
 )
 
 from app.main import app
+from app.core.realtime_enhanced_session import RealtimeEnhancedSession
 
 
 client = TestClient(app)
+
+class FakeRealtimeEnhancedService:
+
+    def __init__(self) -> None:
+        self.received_request: dict | None = None
+
+    async def create_session(
+        self,
+        *,
+        target_language: str,
+        source_languages: list[str] | None = None,
+        prompt: str | None = None,
+        keywords: list[str] | None = None,
+    ) -> RealtimeEnhancedSession:
+
+        self.received_request = {
+            "target_language": target_language,
+            "source_languages": source_languages,
+            "prompt": prompt,
+            "keywords": keywords,
+        }
+
+        return RealtimeEnhancedSession(
+            transcription_provider="fake",
+            transcription_model="fake-streaming-model",
+            target_language=target_language,
+            client_secret="fake-client-secret",
+            expires_at=1234567890,
+            metadata={
+                "transport": "webrtc",
+                "mode": "enhanced",
+                "stage": "streaming_transcription",
+            },
+        )
 
 
 class FakeRealtimeTranslationService:
@@ -279,3 +314,106 @@ def test_realtime_client_metrics_are_observed_in_prometheus() -> None:
     )
 
     assert after == before + 1
+
+def test_create_realtime_enhanced_session(
+        monkeypatch,
+    ) -> None:
+        fake_service = FakeRealtimeEnhancedService()
+
+        monkeypatch.setattr(
+            realtime_api,
+            "realtime_enhanced_service",
+            fake_service,
+        )
+
+        response = client.post(
+            "/api/realtime/enhanced/session",
+            json={
+                "target_language": " FR ",
+                "source_languages": [
+                    "WO",
+                    " fr ",
+                ],
+                "prompt": "Waaxalma technical discussion",
+                "keywords": [
+                    " Waaxalma ",
+                    "Elimane",
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+
+        payload = response.json()
+
+        assert payload["mode"] == "enhanced"
+
+        assert (
+            payload["transcription_provider"]
+            == "fake"
+        )
+
+        assert (
+            payload["transcription_model"]
+            == "fake-streaming-model"
+        )
+
+        assert (
+            payload["target_language"]
+            == "fr"
+        )
+
+        assert (
+            payload["client_secret"]
+            == "fake-client-secret"
+        )
+
+        assert fake_service.received_request == {
+            "target_language": "fr",
+            "source_languages": [
+                "wo",
+                "fr",
+            ],
+            "prompt": "Waaxalma technical discussion",
+            "keywords": [
+                "Waaxalma",
+                "Elimane",
+            ],
+        }
+
+def test_realtime_enhanced_session_rejects_blank_target_language() -> None:
+    response = client.post(
+        "/api/realtime/enhanced/session",
+        json={
+            "target_language": "   ",
+        },
+    )
+
+    assert response.status_code == 422
+
+def test_realtime_enhanced_session_accepts_minimal_request(
+    monkeypatch,
+) -> None:
+    fake_service = FakeRealtimeEnhancedService()
+
+    monkeypatch.setattr(
+        realtime_api,
+        "realtime_enhanced_service",
+        fake_service,
+    )
+
+    response = client.post(
+        "/api/realtime/enhanced/session",
+        json={
+            "target_language": "en",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert fake_service.received_request == {
+        "target_language": "en",
+        "source_languages": None,
+        "prompt": None,
+        "keywords": None,
+    }

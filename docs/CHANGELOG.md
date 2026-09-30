@@ -5,6 +5,67 @@ All notable changes to **Waaxalma** are documented here.
 The project follows semantic versioning where practical.
 
 ---
+# [v0.4.2] — Realtime Enhanced Streaming
+
+v0.4.2 introduces a new Realtime Enhanced execution mode focused on
+transparency, terminology control and composable realtime voice processing.
+
+The Enhanced pipeline now supports:
+
+Microphone
+→ Streaming STT
+→ Final source transcript
+→ Rolling context + terminology
+→ Streaming Translation
+→ Speakable text segmentation
+→ Streaming TTS
+→ PCM jitter-buffered playback
+
+Unlike Realtime Direct, which optimizes for the lowest possible provider-backed
+translation latency, Enhanced mode exposes the source transcript and allows
+Waaxalma to apply terminology and conversational context before speech synthesis.
+
+Key improvements include:
+
+- explicit source-language configuration;
+- authoritative final STT transcripts;
+- rolling source context;
+- ASR-aware translation;
+- concurrent streaming translation and TTS;
+- PCM16 continuity handling;
+- playback jitter buffering;
+- per-utterance latency measurements;
+- hardened WebSocket disconnect behavior.
+
+Observed Enhanced warm-path performance over a 10-segment benchmark:
+
+- translation p50: ~548 ms;
+- translation p95: ~752 ms;
+- first audio p50: ~1.17 s;
+- first audio p95: ~1.46 s.
+
+Test status:
+
+- 216 tests passed;
+- 0 failures.
+
+v0.4.2 completes the Enhanced realtime streaming foundation while preserving
+the existing Realtime Direct mode and the provider-independent architecture
+introduced in v0.4.
+
+## Architecture
+
+v0.4.1
+Realtime Direct
+    ↓
+provider-backed low-latency speech translation
+
+v0.4.2
+Realtime Enhanced
+    ↓
+STT → context / terminology → translation → TTS
+
+Direct optimizes latency. Enhanced optimizes control, observability and extensibility.
 
 ## [v0.4.1] — Realtime Translation & Voice Configuration
 

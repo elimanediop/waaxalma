@@ -1,8 +1,8 @@
 from app.agents.agent_manager import AgentManager
-from app.agents.interpreter_agent import InterpreterAgent
-from app.agents.translation_agent import TranslationAgent
 from app.agents.context_agent import ContextAgent
+from app.agents.interpreter_agent import InterpreterAgent
 from app.agents.quality_agent import QualityAgent
+from app.agents.translation_agent import TranslationAgent
 
 from app.core.config import (
     CONTEXT_PROVIDER,
@@ -12,12 +12,20 @@ from app.core.config import (
     REALTIME_TRANSLATION_PROVIDER,
     SPEECH_PROVIDER,
     SPEECH_TO_TEXT_PROVIDER,
+    STREAMING_TRANSCRIPTION_MODEL,
+    STREAMING_TRANSCRIPTION_PROVIDER,
     TRANSLATION_PROVIDER,
+    STREAMING_TRANSLATION_MODEL,
+    STREAMING_TRANSLATION_PROVIDER,
+    STREAMING_SPEECH_MODEL,
+    STREAMING_SPEECH_PROVIDER,
 )
 
 from app.orchestration.agent_orchestrator import AgentOrchestrator
 
 from app.pipelines.sequential_pipeline import SequentialPipeline
+from app.pipelines.stages.context_stage import ContextStage
+from app.pipelines.stages.quality_stage import QualityStage
 from app.pipelines.stages.speech_stage import SpeechStage
 from app.pipelines.stages.transcription_stage import (
     TranscriptionStage,
@@ -25,42 +33,47 @@ from app.pipelines.stages.transcription_stage import (
 from app.pipelines.stages.translation_stage import (
     TranslationStage,
 )
-from app.pipelines.stages.context_stage import ContextStage
-from app.pipelines.stages.quality_stage import QualityStage
 
+from app.providers.deterministic_quality_provider import (
+    DeterministicQualityProvider,
+)
 from app.providers.openai_provider import (
     OpenAISpeechProvider,
     OpenAISpeechToTextProvider,
     OpenAITranslationProvider,
 )
-
-from app.providers.deterministic_quality_provider import (
-    DeterministicQualityProvider,
+from app.providers.openai_realtime_translation_provider import (
+    OpenAIRealtimeTranslationProvider,
+)
+from app.providers.openai_streaming_transcription_provider import (
+    OpenAIStreamingTranscriptionProvider,
+)
+from app.providers.openai_streaming_translation_provider import (
+    OpenAIStreamingTranslationProvider,
 )
 from app.providers.passthrough_context_provider import (
     PassthroughContextProvider,
 )
-
-from app.providers.openai_realtime_translation_provider import (
-    OpenAIRealtimeTranslationProvider,
+from app.providers.openai_streaming_speech_provider import (
+    OpenAIStreamingSpeechProvider,
 )
 
 from app.registry.agent_registry import AgentRegistry
 from app.registry.pipeline_registry import PipelineRegistry
 from app.registry.provider_registry import ProviderRegistry
 
-from app.skills.speech_skill import SpeechSkill
-from app.skills.speech_to_text_skill import SpeechToTextSkill
-from app.skills.translation_skill import TranslationSkill
-from app.skills.context_skill import ContextSkill
-from app.skills.quality_skill import QualitySkill
-
+from app.services.realtime_enhanced_service import (
+    RealtimeEnhancedService,
+)
 from app.services.realtime_translation_service import (
     RealtimeTranslationService,
 )
 
-
-
+from app.skills.context_skill import ContextSkill
+from app.skills.quality_skill import QualitySkill
+from app.skills.speech_skill import SpeechSkill
+from app.skills.speech_to_text_skill import SpeechToTextSkill
+from app.skills.translation_skill import TranslationSkill
 
 
 def build_provider_registry() -> ProviderRegistry:
@@ -97,13 +110,39 @@ def build_provider_registry() -> ProviderRegistry:
     )
 
     registry.register(
-    capability="realtime_translation",
-    name="openai",
-    provider=OpenAIRealtimeTranslationProvider(
-        api_key=OPENAI_API_KEY,
-        model=REALTIME_TRANSLATION_MODEL,
-    ),
-)
+        capability="realtime_translation",
+        name="openai",
+        provider=OpenAIRealtimeTranslationProvider(
+            api_key=OPENAI_API_KEY,
+            model=REALTIME_TRANSLATION_MODEL,
+        ),
+    )
+
+    registry.register(
+        capability="streaming_transcription",
+        name="openai",
+        provider=OpenAIStreamingTranscriptionProvider(
+            api_key=OPENAI_API_KEY,
+            model=STREAMING_TRANSCRIPTION_MODEL,
+        ),
+    )
+
+    registry.register(
+        capability="streaming_translation",
+        name="openai",
+        provider=OpenAIStreamingTranslationProvider(
+            api_key=OPENAI_API_KEY,
+            model=STREAMING_TRANSLATION_MODEL,
+        ),
+    )
+    registry.register(
+        capability="streaming_speech",
+        name="openai",
+        provider=OpenAIStreamingSpeechProvider(
+            api_key=OPENAI_API_KEY,
+            model=STREAMING_SPEECH_MODEL,
+        ),
+    )
 
     return registry
 
@@ -217,7 +256,7 @@ def build_agent_registry(
         provider=context_provider,
     )
 
-    quality_skill = QualitySkill(   
+    quality_skill = QualitySkill(
         provider=quality_provider,
     )
 
@@ -281,9 +320,19 @@ def build_orchestrator(
 
 provider_registry = build_provider_registry()
 
+
+# Realtime Direct — v0.4.1
 realtime_translation_service = RealtimeTranslationService(
     provider_registry=provider_registry,
     provider_name=REALTIME_TRANSLATION_PROVIDER,
+)
+
+# Realtime Enhanced — v0.4.2
+realtime_enhanced_service = RealtimeEnhancedService(
+    provider_registry=provider_registry,
+    transcription_provider_name=STREAMING_TRANSCRIPTION_PROVIDER,
+    translation_provider_name=STREAMING_TRANSLATION_PROVIDER,
+    speech_provider_name=STREAMING_SPEECH_PROVIDER,
 )
 
 agent_registry = build_agent_registry(

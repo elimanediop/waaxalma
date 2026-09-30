@@ -15,6 +15,11 @@ from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
 from app.skills.context_skill import ContextSkill
 from app.skills.quality_skill import QualitySkill
+from app.core.config import (
+    STREAMING_SPEECH_MODEL,
+    STREAMING_TRANSCRIPTION_MODEL,
+    STREAMING_TRANSLATION_MODEL,
+)
 
 
 class FakeTranslationProvider:
@@ -641,3 +646,81 @@ def test_openai_realtime_provider_is_registered() -> None:
     )
 
     assert provider.name == "openai"
+
+def test_openai_streaming_transcription_provider_is_registered() -> None:
+    registry = build_provider_registry()
+
+    assert registry.contains(
+        capability="streaming_transcription",
+        name="openai",
+    )
+
+    provider = registry.get(
+        capability="streaming_transcription",
+        name="openai",
+    )
+
+    assert provider.name == "openai"
+
+    assert (
+        provider.model
+        == STREAMING_TRANSCRIPTION_MODEL
+    )
+
+def test_streaming_transcription_is_isolated_from_standard_stt() -> None:
+    registry = build_provider_registry()
+
+    standard_provider = registry.get(
+        capability="speech_to_text",
+        name="openai",
+    )
+
+    streaming_provider = registry.get(
+        capability="streaming_transcription",
+        name="openai",
+    )
+
+    assert (
+        standard_provider
+        is not streaming_provider
+    )
+
+def test_openai_streaming_translation_provider_is_registered() -> None:
+    registry = build_provider_registry()
+
+    assert registry.contains(
+        capability="streaming_translation",
+        name="openai",
+    )
+
+    provider = registry.get(
+        capability="streaming_translation",
+        name="openai",
+    )
+
+    assert provider.name == "openai"
+
+    assert (
+        provider.model
+        == STREAMING_TRANSLATION_MODEL
+    )
+
+def test_openai_streaming_speech_provider_is_registered() -> None:
+    registry = build_provider_registry()
+
+    assert registry.contains(
+        capability="streaming_speech",
+        name="openai",
+    )
+
+    provider = registry.get(
+        capability="streaming_speech",
+        name="openai",
+    )
+
+    assert provider.name == "openai"
+
+    assert (
+        provider.model
+        == STREAMING_SPEECH_MODEL
+    )

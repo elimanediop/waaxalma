@@ -10,6 +10,14 @@ ENV_FILE = BASE_DIR / ".env"
 
 load_dotenv(ENV_FILE)
 
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+OPENAI_TRANSLATION_MODEL = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
+OPENAI_TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+OPENAI_TTS_VOICE = os.getenv("OPENAI_TTS_VOICE", "coral")
+
+
 TRANSLATION_PROVIDER = os.getenv(
     "TRANSLATION_PROVIDER",
     "openai",
@@ -45,6 +53,24 @@ REALTIME_TRANSLATION_PROVIDER = os.getenv(
     "openai",
 ).strip().lower()
 
+STREAMING_TRANSCRIPTION_PROVIDER = (
+    os.getenv(
+        "STREAMING_TRANSCRIPTION_PROVIDER",
+        "openai",
+    )
+    .strip()
+    .lower()
+)
+
+
+STREAMING_TRANSCRIPTION_MODEL = (
+    os.getenv(
+        "STREAMING_TRANSCRIPTION_MODEL",
+        "gpt-live-transcribe",
+    )
+    .strip()
+)
+
 REALTIME_TRANSLATION_MODEL = os.getenv(
     "REALTIME_TRANSLATION_MODEL",
     "gpt-realtime-translate",
@@ -55,13 +81,48 @@ REALTIME_TRANSLATION_VOICE = os.getenv(
     "marin",
 ).strip()
 
+STREAMING_TRANSLATION_PROVIDER = (
+    os.getenv(
+        "STREAMING_TRANSLATION_PROVIDER",
+        "openai",
+    )
+    .strip()
+    .lower()
+)
 
+STREAMING_TRANSLATION_MODEL = (
+    os.getenv(
+        "STREAMING_TRANSLATION_MODEL",
+        OPENAI_TRANSLATION_MODEL,
+    )
+    .strip()
+)
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+STREAMING_SPEECH_PROVIDER = (
+    os.getenv(
+        "STREAMING_SPEECH_PROVIDER",
+        "openai",
+    )
+    .strip()
+    .lower()
+)
 
-OPENAI_TRANSLATION_MODEL = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
-OPENAI_TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
-OPENAI_TTS_VOICE = os.getenv("OPENAI_TTS_VOICE", "coral")
+STREAMING_SPEECH_MODEL = (
+    os.getenv(
+        "STREAMING_SPEECH_MODEL",
+        OPENAI_TTS_MODEL,
+    )
+    .strip()
+)
+
+STREAMING_SPEECH_VOICE = (
+    os.getenv(
+        "STREAMING_SPEECH_VOICE",
+        OPENAI_TTS_VOICE,
+    )
+    .strip()
+)
+
 
 STATIC_DIR = BASE_DIR / "static"
 
