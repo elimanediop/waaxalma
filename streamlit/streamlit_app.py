@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import json
+
 from typing import Any
 
 
@@ -8,7 +10,6 @@ import requests
 
 import streamlit as st
 
-import streamlit.components.v1 as components
 
 
 
@@ -32,7 +33,7 @@ st.set_page_config(
 
     page_icon="🎙️",
 
-    layout="centered",
+    layout="wide",
 
 )
 
@@ -89,6 +90,59 @@ REALTIME_ENHANCED_CLIENT_FILE = (
 
 
 
+
+
+AUDIO_INPUT_MANAGER_FILE = (
+    STREAMLIT_DIR
+    / "audio_input_manager.js"
+)
+
+AUDIO_INPUT_SELECTOR_FILE = (
+    STREAMLIT_DIR
+    / "audio_input_selector.html"
+)
+
+
+AUDIO_OUTPUT_MANAGER_FILE = (
+    STREAMLIT_DIR
+    / "audio_output_manager.js"
+)
+
+AUDIO_OUTPUT_SELECTOR_FILE = (
+    STREAMLIT_DIR
+    / "audio_output_selector.html"
+)
+
+AUDIO_MONITOR_SELECTOR_FILE = (
+    STREAMLIT_DIR
+    / "audio_monitor_selector.html"
+)
+
+CONFERENCE_INPUT_MANAGER_FILE = (
+    STREAMLIT_DIR
+    / "conference_input_manager.js"
+)
+
+CONFERENCE_INPUT_SELECTOR_FILE = (
+    STREAMLIT_DIR
+    / "conference_input_selector.html"
+)
+
+CONFERENCE_TRANSLATION_CLIENT_FILE = (
+    STREAMLIT_DIR
+    / "conference_translation_client.html"
+)
+
+FULL_DUPLEX_CONTROLLER_FILE = (
+    STREAMLIT_DIR
+    / "full_duplex_controller.html"
+)
+
+
+STANDARD_AUDIO_PLAYER_FILE = (
+    STREAMLIT_DIR
+    / "standard_audio_player.html"
+)
 # ---------------------------------------------------------------------------
 
 # Session state
@@ -195,9 +249,9 @@ def extract_api_error(
 
         return (
 
-            f"Erreur HTTP {response.status_code}: "
+            f"HTTP error {response.status_code}: "
 
-            f"{response.text or 'Réponse invalide du serveur.'}"
+            f"{response.text or 'Invalid server response.'}"
 
         )
 
@@ -223,7 +277,7 @@ def extract_api_error(
 
             "message",
 
-            "Une erreur est survenue pendant le traitement.",
+            "An error occurred while processing the request.",
 
         )
 
@@ -241,7 +295,7 @@ def extract_api_error(
 
     return (
 
-        f"Erreur HTTP {response.status_code}."
+        f"HTTP error {response.status_code}."
 
     )
 
@@ -361,9 +415,9 @@ def call_voice_interpretation(
 
         raise RuntimeError(
 
-            "Le backend a retourné "
+            "The backend returned "
 
-            "une réponse JSON invalide."
+            "an invalid JSON response."
 
         ) from exc
 
@@ -395,9 +449,9 @@ def call_voice_interpretation(
 
         raise RuntimeError(
 
-            "Réponse incomplète du backend. "
+            "Incomplete backend response. "
 
-            "Champs manquants : "
+            "Missing fields: "
 
             f"{', '.join(sorted(missing_fields))}."
 
@@ -419,12 +473,379 @@ def call_voice_interpretation(
 
 
 
+
+def load_audio_input_manager() -> str:
+    """
+    Load the shared v0.4.4 realtime audio-input abstraction.
+
+    Direct and Enhanced use the same selected physical microphone.
+    """
+    if not AUDIO_INPUT_MANAGER_FILE.exists():
+        raise FileNotFoundError(
+            "Audio input manager not found: "
+            f"{AUDIO_INPUT_MANAGER_FILE}"
+        )
+
+    return AUDIO_INPUT_MANAGER_FILE.read_text(
+        encoding="utf-8"
+    )
+
+
+def load_audio_input_selector() -> str:
+    """
+    Load the global v0.4.4 realtime microphone selector and inject
+    AudioInputManager before selector initialization.
+    """
+    if not AUDIO_INPUT_SELECTOR_FILE.exists():
+        raise FileNotFoundError(
+            "Audio input selector not found: "
+            f"{AUDIO_INPUT_SELECTOR_FILE}"
+        )
+
+    html = AUDIO_INPUT_SELECTOR_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    placeholder = (
+        "__AUDIO_INPUT_MANAGER_SCRIPT__"
+    )
+
+    if placeholder not in html:
+        raise RuntimeError(
+            "Audio input selector is missing "
+            "the manager script placeholder."
+        )
+
+    manager_script = (
+        "<script>\n"
+        + load_audio_input_manager()
+        + "\n</script>"
+    )
+
+    return html.replace(
+        placeholder,
+        manager_script,
+        1,
+    )
+
+def load_audio_output_manager() -> str:
+    """
+    Load the shared browser-side audio-output abstraction.
+
+    v0.4.3 injects the same manager into Standard, Direct,
+    and Enhanced browser clients so all execution modes share
+    one output-device implementation.
+    """
+    if not AUDIO_OUTPUT_MANAGER_FILE.exists():
+        raise FileNotFoundError(
+            "Audio output manager not found: "
+            f"{AUDIO_OUTPUT_MANAGER_FILE}"
+        )
+
+    return AUDIO_OUTPUT_MANAGER_FILE.read_text(
+        encoding="utf-8"
+    )
+
+
+def load_audio_output_selector() -> str:
+    """
+    Load the global v0.4.3 audio-output discovery UI and inject the
+    shared AudioOutputManager before selector initialization.
+
+    The selected device is persisted browser-side and reused by
+    Standard, Direct, and Enhanced playback clients.
+    """
+    if not AUDIO_OUTPUT_SELECTOR_FILE.exists():
+        raise FileNotFoundError(
+            "Audio output selector not found: "
+            f"{AUDIO_OUTPUT_SELECTOR_FILE}"
+        )
+
+    html = AUDIO_OUTPUT_SELECTOR_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    placeholder = (
+        "__AUDIO_OUTPUT_MANAGER_SCRIPT__"
+    )
+
+    if placeholder not in html:
+        raise RuntimeError(
+            "Audio output selector is missing "
+            "the manager script placeholder."
+        )
+
+    manager_script = (
+        "<script>\n"
+        + load_audio_output_manager()
+        + "\n</script>"
+    )
+
+    return html.replace(
+        placeholder,
+        manager_script,
+        1,
+    )
+
+
+
+def load_audio_monitor_selector() -> str:
+    """
+    Load the v0.4.4 Slice 2 local-monitor selector.
+
+    The selector reuses AudioOutputManager but persists an independent
+    monitor sink and enable/disable flag.
+    """
+    if not AUDIO_MONITOR_SELECTOR_FILE.exists():
+        raise FileNotFoundError(
+            "Audio monitor selector not found: "
+            f"{AUDIO_MONITOR_SELECTOR_FILE}"
+        )
+
+    html = AUDIO_MONITOR_SELECTOR_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    placeholder = (
+        "__AUDIO_OUTPUT_MANAGER_SCRIPT__"
+    )
+
+    if placeholder not in html:
+        raise RuntimeError(
+            "Audio monitor selector is missing "
+            "the manager script placeholder."
+        )
+
+    manager_script = (
+        "<script>\n"
+        + load_audio_output_manager()
+        + "\n</script>"
+    )
+
+    return html.replace(
+        placeholder,
+        manager_script,
+        1,
+    )
+
+
+def load_conference_input_manager() -> str:
+    """
+    Load the v0.4.4 Slice 3 conference-input abstraction.
+
+    Slice 3 captures inbound conference/virtual-cable audio and exposes
+    audio-energy only. It intentionally does not invoke STT, translation,
+    TTS, or playback.
+    """
+    if not CONFERENCE_INPUT_MANAGER_FILE.exists():
+        raise FileNotFoundError(
+            "Conference input manager not found: "
+            f"{CONFERENCE_INPUT_MANAGER_FILE}"
+        )
+
+    return CONFERENCE_INPUT_MANAGER_FILE.read_text(
+        encoding="utf-8"
+    )
+
+
+def load_conference_input_selector() -> str:
+    """Load the Slice 3 conference-input selector and inject its manager."""
+    if not CONFERENCE_INPUT_SELECTOR_FILE.exists():
+        raise FileNotFoundError(
+            "Conference input selector not found: "
+            f"{CONFERENCE_INPUT_SELECTOR_FILE}"
+        )
+
+    html = CONFERENCE_INPUT_SELECTOR_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    placeholder = "__CONFERENCE_INPUT_MANAGER_SCRIPT__"
+    if placeholder not in html:
+        raise RuntimeError(
+            "Conference input selector is missing the manager script placeholder."
+        )
+
+    manager_script = (
+        "<script>\n"
+        + load_conference_input_manager()
+        + "\n</script>"
+    )
+
+    return html.replace(
+        placeholder,
+        manager_script,
+        1,
+    )
+
+
+
+def load_conference_translation_client() -> str:
+    """
+    Load the v0.4.4 Slice 4 inbound conference translation client.
+
+    It reuses the Enhanced backend contracts, captures the selected
+    Conference Input, and routes TTS only to Local Monitor.
+    """
+    if not CONFERENCE_TRANSLATION_CLIENT_FILE.exists():
+        raise FileNotFoundError(
+            "Conference translation client not found: "
+            f"{CONFERENCE_TRANSLATION_CLIENT_FILE}"
+        )
+
+    html = CONFERENCE_TRANSLATION_CLIENT_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    html = html.replace(
+        "__WAAXALMA_API_URL__",
+        NORMALIZED_API_URL,
+    )
+
+    manager_script = (
+        "<script>\n"
+        + load_conference_input_manager()
+        + "\n</script>\n"
+        + "<script>\n"
+        + load_audio_output_manager()
+        + "\n</script>\n"
+    )
+
+    if "</head>" not in html:
+        raise RuntimeError(
+            "Conference translation client HTML "
+            "does not contain </head>."
+        )
+
+    return html.replace(
+        "</head>",
+        manager_script + "</head>",
+        1,
+    )
+
+
+
+
+def load_full_duplex_controller(
+    outbound_mode: str,
+) -> str:
+    """
+    Load the v0.4.4 Slice 5 full-duplex lifecycle controller.
+
+    It coordinates the selected outbound realtime iframe and the
+    inbound conference translation iframe through same-origin
+    localStorage command/status events.
+    """
+    if not FULL_DUPLEX_CONTROLLER_FILE.exists():
+        raise FileNotFoundError(
+            "Full duplex controller not found: "
+            f"{FULL_DUPLEX_CONTROLLER_FILE}"
+        )
+
+    html = FULL_DUPLEX_CONTROLLER_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    normalized_mode = (
+        "enhanced"
+        if outbound_mode.lower() == "enhanced"
+        else "direct"
+    )
+
+    mode_label = (
+        "Enhanced"
+        if normalized_mode == "enhanced"
+        else "Direct"
+    )
+
+    return (
+        html
+        .replace(
+            "__OUTBOUND_MODE_VALUE__",
+            normalized_mode,
+        )
+        .replace(
+            "__OUTBOUND_MODE_LABEL__",
+            mode_label,
+        )
+    )
+
+
+def load_standard_audio_player(
+    audio_url: str,
+) -> str:
+    """
+    Load the Standard interpreted-audio player and inject:
+
+    - the shared v0.4.3 AudioOutputManager;
+    - the fully qualified backend audio URL.
+
+    The player is browser-managed so HTMLMediaElement.setSinkId()
+    can route Standard audio to the same selected device used by
+    Direct and Enhanced modes.
+    """
+    if not STANDARD_AUDIO_PLAYER_FILE.exists():
+        raise FileNotFoundError(
+            "Standard audio player not found: "
+            f"{STANDARD_AUDIO_PLAYER_FILE}"
+        )
+
+    html = STANDARD_AUDIO_PLAYER_FILE.read_text(
+        encoding="utf-8"
+    )
+
+    manager_placeholder = (
+        "__AUDIO_OUTPUT_MANAGER_SCRIPT__"
+    )
+
+    audio_url_placeholder = (
+        "__STANDARD_AUDIO_URL_JSON__"
+    )
+
+    if manager_placeholder not in html:
+        raise RuntimeError(
+            "Standard audio player is missing "
+            "the manager script placeholder."
+        )
+
+    if audio_url_placeholder not in html:
+        raise RuntimeError(
+            "Standard audio player is missing "
+            "the audio URL placeholder."
+        )
+
+    manager_script = (
+        "<script>\n"
+        + load_audio_output_manager()
+        + "\n</script>"
+    )
+
+    html = html.replace(
+        manager_placeholder,
+        manager_script,
+        1,
+    )
+
+    return html.replace(
+        audio_url_placeholder,
+        json.dumps(
+            audio_url
+        ),
+        1,
+    )
+
+
 def load_realtime_client(
     client_file: Path,
 ) -> str:
     """
-    Load one of the browser realtime clients and inject the
-    configured Waaxalma backend URL.
+    Load one realtime browser client, inject the configured
+    Waaxalma backend URL, then inject the shared v0.4.3
+    AudioOutputManager.
+
+    The JavaScript is embedded directly in the iframe HTML because
+    local files under streamlit/ are not automatically served as
+    static assets by st.iframe().
     """
     if not client_file.exists():
         raise FileNotFoundError(
@@ -441,7 +862,98 @@ def load_realtime_client(
         NORMALIZED_API_URL,
     )
 
+    audio_input_manager_js = (
+        load_audio_input_manager()
+    )
+
+    audio_output_manager_js = (
+        load_audio_output_manager()
+    )
+
+    manager_script = (
+        "<script>\n"
+        + audio_input_manager_js
+        + "\n</script>\n"
+        + "<script>\n"
+        + audio_output_manager_js
+        + "\n</script>\n"
+    )
+
+    if "</head>" not in html:
+        raise RuntimeError(
+            "Realtime client HTML does not contain </head>: "
+            f"{client_file}"
+        )
+
+    html = html.replace(
+        "</head>",
+        manager_script + "</head>",
+        1,
+    )
+
     return html
+
+
+# ---------------------------------------------------------------------------
+
+# UI theme
+
+# ---------------------------------------------------------------------------
+
+
+st.markdown(
+    """
+    <style>
+        .block-container {
+            max-width: 1440px;
+            padding-top: 1.5rem;
+            padding-bottom: 3rem;
+        }
+
+        [data-testid="stTabs"] [data-baseweb="tab-list"] {
+            gap: 0.5rem;
+        }
+
+        [data-testid="stTabs"] [data-baseweb="tab"] {
+            height: 2.75rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        [data-testid="stExpander"] {
+            border-radius: 12px;
+        }
+
+        .waaxalma-hero {
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(128, 128, 128, 0.20);
+            border-radius: 14px;
+        }
+
+        .waaxalma-hero-title {
+            margin: 0;
+            font-size: 1.85rem;
+            font-weight: 750;
+            line-height: 1.1;
+        }
+
+        .waaxalma-hero-subtitle {
+            margin-top: 0.35rem;
+            opacity: 0.72;
+            font-size: 0.96rem;
+        }
+
+        .waaxalma-section-note {
+            margin-top: -0.25rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.68;
+            font-size: 0.88rem;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -451,25 +963,173 @@ def load_realtime_client(
 # ---------------------------------------------------------------------------
 
 
-
-st.title("🎙️ Waaxalma")
-
-
-
-st.caption(
-
-    "Parle dans ta langue, "
-
-    "Waaxalma interprète et parle pour toi."
-
+st.markdown(
+    """
+    <div class="waaxalma-hero">
+        <div class="waaxalma-hero-title">🎙️ Waaxalma</div>
+        <div class="waaxalma-hero-subtitle">
+            Speak in your language. Waaxalma interprets and speaks for you.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 
 
+# ---------------------------------------------------------------------------
+# Audio workspace — v0.4.4
+# ---------------------------------------------------------------------------
+
+
+with st.expander(
+    "🎛️ Audio Devices & Conferencing",
+    expanded=True,
+):
+    st.markdown(
+        '<div class="waaxalma-section-note">'
+        "Configure browser audio devices once; selections are persisted "
+        "locally and reused by the realtime clients."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    (
+        input_device_tab,
+        conference_output_tab,
+        local_monitor_tab,
+        conference_input_tab,
+    ) = st.tabs(
+        [
+            "🎤 Microphone",
+            "🔊 Conference Output",
+            "🎧 Local Monitor",
+            "🎙️ Conference Input",
+        ]
+    )
+
+    with input_device_tab:
+        try:
+            audio_input_selector_html = (
+                load_audio_input_selector()
+            )
+
+            st.iframe(
+                audio_input_selector_html,
+                height=150,
+                width="stretch",
+            )
+
+        except (
+            FileNotFoundError,
+            RuntimeError,
+        ) as exc:
+            st.warning(
+                str(exc),
+                icon="🎤",
+            )
+
+    with conference_output_tab:
+        try:
+            audio_output_selector_html = (
+                load_audio_output_selector()
+            )
+
+            st.iframe(
+                audio_output_selector_html,
+                height=145,
+                width="stretch",
+            )
+
+        except (
+            FileNotFoundError,
+            RuntimeError,
+        ) as exc:
+            st.warning(
+                str(exc),
+                icon="🔊",
+            )
+
+    with local_monitor_tab:
+        try:
+            audio_monitor_selector_html = (
+                load_audio_monitor_selector()
+            )
+
+            st.iframe(
+                audio_monitor_selector_html,
+                height=155,
+                width="stretch",
+            )
+
+        except (
+            FileNotFoundError,
+            RuntimeError,
+        ) as exc:
+            st.warning(
+                str(exc),
+                icon="🎧",
+            )
+
+    with conference_input_tab:
+        st.caption(
+            "Use a dedicated virtual-cable recording endpoint for "
+            "remote participant audio. Slice 4 adds inbound streaming "
+            "STT, translation and TTS using the existing Enhanced backend."
+        )
+
+        st.markdown("#### Device & Signal Check")
+
+        try:
+            conference_input_selector_html = (
+                load_conference_input_selector()
+            )
+
+            st.iframe(
+                conference_input_selector_html,
+                height=185,
+                width="stretch",
+            )
+
+        except (
+            FileNotFoundError,
+            RuntimeError,
+        ) as exc:
+            st.warning(
+                str(exc),
+                icon="🎙️",
+            )
+
+        st.markdown("#### Inbound Translation")
+
+        st.caption(
+            "Stop the diagnostic capture above before starting inbound "
+            "translation. Translated remote speech is routed only to the "
+            "selected Local Monitor device."
+        )
+
+        try:
+            conference_translation_client_html = (
+                load_conference_translation_client()
+            )
+
+            st.iframe(
+                conference_translation_client_html,
+                height=390,
+                width="stretch",
+            )
+
+        except (
+            FileNotFoundError,
+            RuntimeError,
+        ) as exc:
+            st.warning(
+                str(exc),
+                icon="🌐",
+            )
+
+
 st.divider()
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -480,13 +1140,48 @@ st.divider()
 
 
 
+st.markdown("### Full Duplex Conferencing")
+
+st.caption(
+    "Start and stop outbound + inbound interpretation together. "
+    "Outbound uses the currently selected Live Translation mode."
+)
+
+try:
+    full_duplex_controller_html = (
+        load_full_duplex_controller(
+            st.session_state.realtime_mode
+        )
+    )
+
+    st.iframe(
+        full_duplex_controller_html,
+        height=145,
+        width="stretch",
+    )
+
+except (FileNotFoundError, RuntimeError) as exc:
+    st.warning(
+        str(exc),
+        icon="🔁",
+    )
+
+
+st.markdown("### Workspace")
+
+st.caption(
+    "Use Standard Interpretation for request/response processing, "
+    "or Live Translation for realtime Direct / Enhanced sessions."
+)
+
+
 standard_tab, realtime_tab = st.tabs(
 
     [
 
-        "🎙️ Interprétation",
+        "🎙️ Interpretation",
 
-        "⚡ Traduction en direct",
+        "⚡ Live Translation",
 
     ]
 
@@ -510,7 +1205,7 @@ with standard_tab:
 
     st.subheader(
 
-        "Interprétation standard"
+        "Standard Interpretation"
 
     )
 
@@ -518,36 +1213,43 @@ with standard_tab:
 
     st.caption(
 
-        "Pipeline complet : transcription → contexte → "
+        "Full pipeline: transcription → context → "
 
-        "traduction → qualité → synthèse vocale."
-
-    )
-
-
-
-
-
-    st.selectbox(
-
-        "Langue cible",
-
-        options=TARGET_LANGUAGES,
-
-        key="target_language",
-
-        help=(
-
-            "Langue dans laquelle Waaxalma "
-
-            "doit interpréter le message."
-
-        ),
+        "translation → quality → speech synthesis."
 
     )
 
 
 
+
+
+    standard_controls_left, standard_controls_right = (
+        st.columns(
+            [1, 2],
+            gap="large",
+        )
+    )
+
+
+    with standard_controls_left:
+
+        st.selectbox(
+
+            "Target language",
+
+            options=TARGET_LANGUAGES,
+
+            key="target_language",
+
+            help=(
+
+                "Language into which Waaxalma "
+
+                "should interpret the message."
+
+            ),
+
+        )
 
 
     audio_widget_key = (
@@ -559,18 +1261,17 @@ with standard_tab:
     )
 
 
+    with standard_controls_right:
 
+        audio_value = st.audio_input(
 
+            "Record your voice",
 
-    audio_value = st.audio_input(
+            sample_rate=16000,
 
-        "Enregistre ta voix",
+            key=audio_widget_key,
 
-        sample_rate=16000,
-
-        key=audio_widget_key,
-
-    )
+        )
 
 
 
@@ -602,7 +1303,7 @@ with standard_tab:
 
         interpret_clicked = st.button(
 
-            "Interpréter",
+            "Interpret",
 
             type="primary",
 
@@ -624,7 +1325,7 @@ with standard_tab:
 
         st.button(
 
-            "Réinitialiser",
+            "Reset",
 
             on_click=reset_interface,
 
@@ -672,9 +1373,9 @@ with standard_tab:
 
             with st.spinner(
 
-                "Waaxalma interprète "
+                "Waaxalma is interpreting "
 
-                "votre message..."
+                "your message..."
 
             ):
 
@@ -716,11 +1417,11 @@ with standard_tab:
 
             st.session_state.request_error = (
 
-                "Le délai maximal a été dépassé. "
+                "The request timed out. "
 
-                "Le service met trop de temps "
+                "The service is taking too long "
 
-                "à répondre."
+                "to respond."
 
             )
 
@@ -730,11 +1431,11 @@ with standard_tab:
 
             st.session_state.request_error = (
 
-                "Impossible de joindre le backend "
+                "Unable to reach the Waaxalma backend. "
 
-                "Waaxalma. Vérifie que FastAPI "
+                "Make sure FastAPI "
 
-                "est démarré."
+                "is running."
 
             )
 
@@ -744,9 +1445,9 @@ with standard_tab:
 
             st.session_state.request_error = (
 
-                "Erreur de communication avec "
+                "Communication error with "
 
-                f"le backend : {exc}"
+                f"the backend: {exc}"
 
             )
 
@@ -766,7 +1467,7 @@ with standard_tab:
 
             st.session_state.request_error = (
 
-                "Une erreur inattendue est survenue."
+                "An unexpected error occurred."
 
             )
 
@@ -820,7 +1521,7 @@ with standard_tab:
 
         st.success(
 
-            "Interprétation terminée.",
+            "Interpretation complete.",
 
             icon="✅",
 
@@ -830,7 +1531,7 @@ with standard_tab:
 
         st.subheader(
 
-            "Résultat"
+            "Result"
 
         )
 
@@ -844,9 +1545,9 @@ with standard_tab:
 
                 [
 
-                    "Texte détecté",
+                    "Detected text",
 
-                    "Interprétation",
+                    "Interpretation",
 
                 ]
 
@@ -904,13 +1605,13 @@ with standard_tab:
 
             st.subheader(
 
-                "Audio interprété"
+                "Interpreted audio"
 
             )
 
 
 
-            st.audio(
+            interpreted_audio_url = (
 
                 build_audio_url(
 
@@ -921,16 +1622,66 @@ with standard_tab:
             )
 
 
+            try:
+
+                standard_audio_player_html = (
+
+                    load_standard_audio_player(
+
+                        interpreted_audio_url
+
+                    )
+
+                )
+
+
+                st.iframe(
+
+                    standard_audio_player_html,
+
+                    height=70,
+
+                    width="stretch",
+
+                )
+
+
+            except (
+
+                FileNotFoundError,
+
+                RuntimeError,
+
+            ) as exc:
+
+                st.warning(
+
+                    str(exc),
+
+                    icon="🔊",
+
+                )
+
+
+                # Availability fallback only.
+                # This fallback uses the browser default output.
+                st.audio(
+
+                    interpreted_audio_url
+
+                )
+
+
 
         else:
 
             st.info(
 
-                "Aucun fichier audio "
+                "No audio file "
 
-                "n’a été retourné "
+                "was returned "
 
-                "par le backend."
+                "by the backend."
 
             )
 
@@ -952,7 +1703,7 @@ with standard_tab:
 
             with st.expander(
 
-                "Qualité"
+                "Quality"
 
             ):
 
@@ -1048,7 +1799,7 @@ with standard_tab:
 
             with st.expander(
 
-                "Informations techniques"
+                "Technical information"
 
             ):
 
@@ -1080,11 +1831,11 @@ with standard_tab:
 with realtime_tab:
 
     st.subheader(
-        "Traduction en direct"
+        "Live Translation"
     )
 
     realtime_mode = st.radio(
-        "Mode temps réel",
+        "Realtime mode",
         options=[
             "Direct",
             "Enhanced",
@@ -1092,24 +1843,24 @@ with realtime_tab:
         key="realtime_mode",
         horizontal=True,
         help=(
-            "Direct privilégie la latence minimale via WebRTC. "
-            "Enhanced ajoute transcription source, terminologie, "
-            "traduction streaming et synthèse vocale streaming."
+            "Direct prioritizes minimum latency over WebRTC. "
+            "Enhanced adds source transcription, terminology, "
+            "streaming translation, and streaming speech synthesis."
         ),
     )
 
     if realtime_mode == "Direct":
         st.caption(
-            "Le microphone est transmis en temps réel "
-            "au moteur de traduction. "
-            "L’audio traduit et le texte sont produits "
-            "pendant que tu parles."
+            "The microphone is streamed in realtime "
+            "to the translation engine. "
+            "Translated audio and text are produced "
+            "while you speak."
         )
 
         st.info(
-            "Le mode Direct privilégie la faible latence. "
-            "Il n’utilise pas le pipeline Context / Quality "
-            "du mode standard.",
+            "Direct mode prioritizes low latency. "
+            "It does not use the Context / Quality pipeline "
+            "from Standard mode.",
             icon="⚡",
         )
 
@@ -1121,16 +1872,16 @@ with realtime_tab:
 
     else:
         st.caption(
-            "Le mode Enhanced combine transcription source "
-            "en streaming, contexte / terminologie, traduction "
-            "streaming et synthèse vocale streaming."
+            "Enhanced mode combines streaming source transcription, "
+            "context / terminology, streaming translation, "
+            "and streaming speech synthesis."
         )
 
         st.info(
-            "Le mode Enhanced expose le transcript source "
-            "et permet d’appliquer la terminologie avant la "
-            "synthèse vocale. Il peut avoir davantage de latence "
-            "que le mode Direct.",
+            "Enhanced mode exposes the source transcript "
+            "and applies terminology before "
+            "speech synthesis. It may have higher latency "
+            "than Direct mode.",
             icon="🧩",
         )
 
@@ -1147,10 +1898,10 @@ with realtime_tab:
             )
         )
 
-        components.html(
+        st.iframe(
             realtime_html,
             height=realtime_client_height,
-            scrolling=False,
+            width="stretch",
         )
 
     except FileNotFoundError as exc:

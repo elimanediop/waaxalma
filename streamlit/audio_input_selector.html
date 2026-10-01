@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Waaxalma Audio Input</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            background: transparent;
+        }
+
+        .container {
+            width: 100%;
+            padding: 4px 2px 2px 2px;
+        }
+
+        .title {
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns:
+                minmax(220px, 1fr)
+                auto
+                auto;
+            gap: 8px;
+            align-items: end;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        select,
+        button {
+            height: 36px;
+            border:
+                1px solid
+                rgba(128, 128, 128, 0.35);
+            border-radius: 6px;
+            padding: 0 10px;
+            font-size: 13px;
+        }
+
+        select {
+            width: 100%;
+            background: transparent;
+            color: inherit;
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .status {
+            margin-top: 8px;
+            font-size: 11px;
+            line-height: 1.45;
+            opacity: 0.75;
+        }
+
+        .status.error {
+            opacity: 1;
+        }
+
+        .capabilities {
+            margin-top: 4px;
+            font-size: 10px;
+            opacity: 0.55;
+        }
+
+        @media (max-width: 680px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    __AUDIO_INPUT_MANAGER_SCRIPT__
+</head>
+
+<body>
+<div class="container">
+
+    <div class="title">
+        🎤 Realtime Audio Input
+    </div>
+
+    <div class="controls">
+
+        <div class="field">
+            <label for="inputDevice">
+                Input device
+            </label>
+
+            <select id="inputDevice">
+                <option value="">
+                    Default microphone
+                </option>
+            </select>
+        </div>
+
+        <button id="refreshButton">
+            Refresh
+        </button>
+
+        <button id="permissionButton">
+            Allow microphone access
+        </button>
+
+    </div>
+
+    <div
+        id="status"
+        class="status"
+    >
+        Discovering microphones...
+    </div>
+
+    <div
+        id="capabilities"
+        class="capabilities"
+    ></div>
+
+</div>
+
+<script>
+    const STORAGE_KEY =
+        "waaxalma.audioInputDeviceId";
+
+    const inputDeviceElement =
+        document.getElementById(
+            "inputDevice"
+        );
+
+    const refreshButton =
+        document.getElementById(
+            "refreshButton"
+        );
+
+    const permissionButton =
+        document.getElementById(
+            "permissionButton"
+        );
+
+    const statusElement =
+        document.getElementById(
+            "status"
+        );
+
+    const capabilitiesElement =
+        document.getElementById(
+            "capabilities"
+        );
+
+    function setStatus(
+        message,
+        isError = false
+    ) {
+        statusElement.textContent =
+            message;
+
+        statusElement.classList.toggle(
+            "error",
+            isError
+        );
+    }
+
+    function renderCapabilities(
+        capabilities
+    ) {
+        capabilitiesElement.textContent =
+            (
+                "enumerateDevices: "
+                + (
+                    capabilities.enumerateDevices
+                    ? "yes"
+                    : "no"
+                )
+                + " · getUserMedia: "
+                + (
+                    capabilities.getUserMedia
+                    ? "yes"
+                    : "no"
+                )
+            );
+    }
+
+    function normalizeDeviceLabel(
+        device,
+        index
+    ) {
+        if (
+            device.deviceId
+            === "default"
+        ) {
+            return (
+                device.label
+                || "Default microphone"
+            );
+        }
+
+        return (
+            device.label
+            || (
+                "Microphone "
+                + String(index + 1)
+            )
+        );
+    }
+
+    function renderDevices(
+        devices
+    ) {
+        const previousValue =
+            inputDeviceElement.value;
+
+        inputDeviceElement.innerHTML =
+            "";
+
+        const defaultOption =
+            document.createElement(
+                "option"
+            );
+
+        defaultOption.value =
+            "";
+
+        defaultOption.textContent =
+            "Default microphone";
+
+        inputDeviceElement.appendChild(
+            defaultOption
+        );
+
+        devices.forEach(
+            (
+                device,
+                index
+            ) => {
+                if (
+                    !device.deviceId
+                    || device.deviceId
+                    === "default"
+                ) {
+                    return;
+                }
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+                option.value =
+                    device.deviceId;
+
+                option.textContent =
+                    normalizeDeviceLabel(
+                        device,
+                        index
+                    );
+
+                inputDeviceElement
+                    .appendChild(
+                        option
+                    );
+            }
+        );
+
+        const savedDeviceId =
+            localStorage.getItem(
+                STORAGE_KEY
+            ) || "";
+
+        const preferredValue =
+            savedDeviceId
+            || previousValue
+            || "";
+
+        const exists =
+            preferredValue === ""
+            || devices.some(
+                device =>
+                    device.deviceId
+                    === preferredValue
+            );
+
+        inputDeviceElement.value =
+            exists
+            ? preferredValue
+            : "";
+
+        if (!exists) {
+            localStorage.removeItem(
+                STORAGE_KEY
+            );
+        }
+    }
+
+    const manager =
+        new window
+            .WaaxalmaAudioInputManager({
+                onDevicesChanged:
+                    devices => {
+                        renderDevices(
+                            devices
+                        );
+                    },
+
+                onFallback:
+                    () => {
+                        localStorage.removeItem(
+                            STORAGE_KEY
+                        );
+
+                        inputDeviceElement.value =
+                            "";
+
+                        setStatus(
+                            (
+                                "The selected microphone "
+                                + "disappeared. "
+                                + "Falling back to default."
+                            )
+                        );
+                    },
+            });
+
+    async function applySavedSelection() {
+        const savedDeviceId =
+            localStorage.getItem(
+                STORAGE_KEY
+            ) || "";
+
+        await manager
+            .setInputDevice(
+                savedDeviceId
+            );
+    }
+
+    async function refreshDevices() {
+        refreshButton.disabled =
+            true;
+
+        try {
+            await applySavedSelection();
+
+            const devices =
+                await manager
+                    .refreshDevices();
+
+            renderDevices(
+                devices
+            );
+
+            setStatus(
+                (
+                    devices.length
+                    + (
+                        devices.length === 1
+                        ? " microphone detected."
+                        : " microphones detected."
+                    )
+                    + " Selection is used by Direct "
+                    + "and Enhanced on the next Start."
+                )
+            );
+        }
+        catch (error) {
+            console.error(
+                "[AudioInput] refresh failed",
+                error
+            );
+
+            setStatus(
+                (
+                    "Unable to enumerate microphones: "
+                    + error.message
+                ),
+                true
+            );
+        }
+        finally {
+            refreshButton.disabled =
+                false;
+        }
+    }
+
+    async function requestPermission() {
+        permissionButton.disabled =
+            true;
+
+        try {
+            await manager
+                .requestPermission();
+
+            await refreshDevices();
+
+            setStatus(
+                (
+                    "Microphone access granted. "
+                    + "Select the physical microphone "
+                    + "used by Waaxalma."
+                )
+            );
+        }
+        catch (error) {
+            if (
+                error.name
+                === "NotAllowedError"
+            ) {
+                setStatus(
+                    (
+                        "Microphone permission was denied. "
+                        + "Allow microphone access in the "
+                        + "browser site settings."
+                    ),
+                    true
+                );
+
+                return;
+            }
+
+            console.error(
+                "[AudioInput] permission failed",
+                error
+            );
+
+            setStatus(
+                (
+                    "Unable to request microphone access: "
+                    + error.message
+                ),
+                true
+            );
+        }
+        finally {
+            permissionButton.disabled =
+                !manager.capabilities
+                    .getUserMedia;
+        }
+    }
+
+    inputDeviceElement
+        .addEventListener(
+            "change",
+            async () => {
+                const deviceId =
+                    inputDeviceElement.value;
+
+                await manager
+                    .setInputDevice(
+                        deviceId
+                    );
+
+                if (deviceId) {
+                    localStorage.setItem(
+                        STORAGE_KEY,
+                        deviceId
+                    );
+                }
+                else {
+                    localStorage.removeItem(
+                        STORAGE_KEY
+                    );
+                }
+
+                const selectedOption =
+                    inputDeviceElement
+                        .selectedOptions[0];
+
+                setStatus(
+                    (
+                        "Selected: "
+                        + (
+                            selectedOption
+                                ?.textContent
+                            || "Default microphone"
+                        )
+                        + ". Applied on the next "
+                        + "Direct / Enhanced Start."
+                    )
+                );
+            }
+        );
+
+    refreshButton
+        .addEventListener(
+            "click",
+            refreshDevices
+        );
+
+    permissionButton
+        .addEventListener(
+            "click",
+            requestPermission
+        );
+
+    window.addEventListener(
+        "beforeunload",
+        () => {
+            manager.stop();
+        }
+    );
+
+    async function initializeAudioInput() {
+        renderCapabilities(
+            manager.capabilities
+        );
+
+        permissionButton.disabled =
+            !manager.capabilities
+                .getUserMedia;
+
+        try {
+            await manager.start();
+            await refreshDevices();
+        }
+        catch (error) {
+            console.error(
+                "[AudioInput] initialization failed",
+                error
+            );
+
+            setStatus(
+                (
+                    "Microphone discovery failed: "
+                    + error.message
+                ),
+                true
+            );
+        }
+    }
+
+    initializeAudioInput();
+</script>
+</body>
+</html>

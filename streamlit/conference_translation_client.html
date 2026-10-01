@@ -183,7 +183,7 @@
 
         <div class="field">
             <label for="sourceLanguage">
-                Source language
+                Remote language
             </label>
 
             <select id="sourceLanguage">
@@ -211,7 +211,7 @@
 
         <div class="field">
             <label for="targetLanguage">
-                Target language
+                Translate for me into
             </label>
 
             <select id="targetLanguage">
@@ -246,7 +246,7 @@
         </div>
 
         <button id="startButton">
-            Start
+            Start inbound
         </button>
 
         <button
@@ -273,7 +273,7 @@
         </div>
 
         <span>
-            Enhanced
+            Inbound Enhanced
         </span>
 
     </div>
@@ -284,14 +284,14 @@
         <div class="card">
 
             <div class="card-title">
-                Source transcript
+                Remote transcript
             </div>
 
             <div
                 id="sourceTranscript"
                 class="transcript placeholder"
             >
-                Start speaking to see the source transcript.
+                Start inbound translation and let the remote participant speak.
             </div>
 
         </div>
@@ -307,7 +307,7 @@
                 id="translationTranscript"
                 class="transcript placeholder"
             >
-                Translation will appear here.
+                Inbound translation will appear here and play through Local Monitor.
             </div>
 
         </div>
@@ -319,6 +319,22 @@
         id="metrics"
         class="metrics"
     ></div>
+
+    <div
+        style="
+            margin-top: 8px;
+            padding: 8px 10px;
+            border: 1px solid rgba(128,128,128,0.18);
+            border-radius: 7px;
+            font-size: 11px;
+            line-height: 1.4;
+            opacity: 0.72;
+        "
+    >
+        Inbound path only:
+        Conference Input → STT → translation → TTS → Local Monitor.
+        Primary / Conference Output is never used by this client.
+    </div>
 
 </div>
 
@@ -357,7 +373,7 @@
     // ------------------------------------------------------------
 
     const SOURCE_VAD_RMS_THRESHOLD =
-        0.035;
+        0.012;
 
     const VAD_REQUIRED_FRAMES =
         3;
@@ -369,11 +385,24 @@
         20;
 
 
+    /*
+     * Inbound direction:
+     * Conference Input -> Enhanced pipeline -> Local Monitor.
+     *
+     * The existing Enhanced playback path is intentionally rebound to the
+     * Local Monitor key. Primary / Conference Output is never used here.
+     */
     const AUDIO_OUTPUT_STORAGE_KEY =
-        "waaxalma.audioOutputDeviceId";
+        "waaxalma.monitorOutputDeviceId";
 
     const AUDIO_INPUT_STORAGE_KEY =
+        "waaxalma.conferenceInputDeviceId";
+
+    const PHYSICAL_INPUT_STORAGE_KEY =
         "waaxalma.audioInputDeviceId";
+
+    const PRIMARY_CONFERENCE_OUTPUT_STORAGE_KEY =
+        "waaxalma.audioOutputDeviceId";
 
     const MONITOR_OUTPUT_STORAGE_KEY =
         "waaxalma.monitorOutputDeviceId";
@@ -389,10 +418,10 @@
         "waaxalma.fullDuplex.desired";
 
     const FULL_DUPLEX_STATUS_KEY =
-        "waaxalma.fullDuplex.outbound.enhanced.status";
+        "waaxalma.fullDuplex.inbound.status";
 
     const FULL_DUPLEX_MODE =
-        "enhanced";
+        "inbound";
 
 
     // ------------------------------------------------------------
@@ -823,7 +852,7 @@
         }
 
         debugLog(
-            "[Enhanced] creating STT session",
+            "[Inbound] creating STT session",
             {
                 source_language:
                     sourceLanguage,
@@ -873,7 +902,7 @@
 
             throw new Error(
                 (
-                    "Enhanced session creation "
+                    "Inbound session creation "
                     + "failed with HTTP "
                     + response.status
                     + (
@@ -917,7 +946,7 @@
                                 (
                                     "Unable to connect "
                                     + "to Waaxalma "
-                                    + "Enhanced WebSocket."
+                                    + "Inbound Enhanced WebSocket."
                                 )
                             )
                         );
@@ -934,7 +963,7 @@
                     setStatus(
                         "error",
                         (
-                            "Enhanced backend "
+                            "Inbound backend "
                             + "connection closed"
                         )
                     );
@@ -1066,7 +1095,7 @@
         catch (error) {
             console.error(
                 (
-                    "[Enhanced] Invalid "
+                    "[Inbound] Invalid "
                     + "backend event"
                 ),
                 error
@@ -1141,7 +1170,7 @@
             === "audio.delta"
         ) {
             debugLog(
-                "[Enhanced] audio.delta",
+                "[Inbound] audio.delta",
                 {
                     bytes_base64:
                         payload.audio
@@ -1200,7 +1229,7 @@
                 ) {
                     console.warn(
                         (
-                            "[Enhanced] PCM stream ended "
+                            "[Inbound] PCM stream ended "
                             + "with one unmatched byte."
                         )
                     );
@@ -1219,7 +1248,7 @@
             === "error"
         ) {
             console.error(
-                "[Enhanced backend]",
+                "[Inbound backend]",
                 payload
             );
 
@@ -1227,7 +1256,7 @@
                 "error",
                 (
                     payload.message
-                    || "Enhanced backend error"
+                    || "Inbound backend error"
                 )
             );
         }
@@ -1236,16 +1265,82 @@
 
 
     // ------------------------------------------------------------
+    // Inbound routing safety — v0.4.4 Slice 4
+    // ------------------------------------------------------------
+
+    function validateInboundRouting() {
+        const conferenceInputDeviceId =
+            localStorage.getItem(
+                AUDIO_INPUT_STORAGE_KEY
+            ) || "";
+
+        const physicalInputDeviceId =
+            localStorage.getItem(
+                PHYSICAL_INPUT_STORAGE_KEY
+            ) || "";
+
+        const localMonitorDeviceId =
+            localStorage.getItem(
+                AUDIO_OUTPUT_STORAGE_KEY
+            ) || "";
+
+        const primaryConferenceOutputDeviceId =
+            localStorage.getItem(
+                PRIMARY_CONFERENCE_OUTPUT_STORAGE_KEY
+            ) || "";
+
+        if (!conferenceInputDeviceId) {
+            throw new Error(
+                "Select an explicit Conference Input device first."
+            );
+        }
+
+        if (!localMonitorDeviceId) {
+            throw new Error(
+                "Select an explicit Local Monitor device first."
+            );
+        }
+
+        if (
+            physicalInputDeviceId
+            && conferenceInputDeviceId
+                === physicalInputDeviceId
+        ) {
+            throw new Error(
+                (
+                    "Conference Input matches the physical microphone. "
+                    + "Select the virtual cable carrying remote audio."
+                )
+            );
+        }
+
+        if (
+            primaryConferenceOutputDeviceId
+            && localMonitorDeviceId
+                === primaryConferenceOutputDeviceId
+        ) {
+            throw new Error(
+                (
+                    "Local Monitor matches Primary / Conference Output. "
+                    + "Select headphones as Local Monitor to avoid "
+                    + "sending inbound translated audio back to Teams."
+                )
+            );
+        }
+    }
+
+
+    // ------------------------------------------------------------
     // Explicit realtime audio input — v0.4.4 Slice 1
     // ------------------------------------------------------------
 
     async function ensureAudioInputManager() {
         if (
-            !window.WaaxalmaAudioInputManager
+            !window.WaaxalmaConferenceInputManager
         ) {
             throw new Error(
-                "WaaxalmaAudioInputManager is not available. "
-                + "Check Streamlit audio-input script injection."
+                "WaaxalmaConferenceInputManager is not available. "
+                + "Check Streamlit conference-input script injection."
             );
         }
 
@@ -1254,8 +1349,8 @@
         ) {
             audioInputManager =
                 new window
-                    .WaaxalmaAudioInputManager({
-                        onFallback:
+                    .WaaxalmaConferenceInputManager({
+                        onDeviceUnavailable:
                             ({
                                 previousDeviceId,
                             }) => {
@@ -1266,13 +1361,17 @@
 
                                 console.warn(
                                     (
-                                        "[Enhanced] Selected microphone "
-                                        + "disappeared. "
-                                        + "Falling back to default."
+                                        "[Inbound] Conference Input "
+                                        + "disappeared. Capture stopped."
                                     ),
                                     {
                                         previousDeviceId,
                                     }
+                                );
+
+                                setStatus(
+                                    "error",
+                                    "Conference Input disappeared"
                                 );
                             },
                     });
@@ -1329,7 +1428,7 @@
 
         microphoneStream =
             await inputManager
-                .acquireStream();
+                .startCapture();
 
         const audioTrack =
             microphoneStream
@@ -1352,7 +1451,7 @@
             event => {
                 console.error(
                     (
-                        "[Enhanced] OpenAI "
+                        "[Inbound] OpenAI "
                         + "data channel error"
                     ),
                     event
@@ -1363,7 +1462,7 @@
             () => {
                 debugLog(
                     (
-                        "[Enhanced] WebRTC state:"
+                        "[Inbound] WebRTC state:"
                     ),
                     peerConnection
                         .connectionState
@@ -1480,7 +1579,7 @@
         catch (error) {
             console.error(
                 (
-                    "[Enhanced] Invalid "
+                    "[Inbound] Invalid "
                     + "OpenAI event"
                 ),
                 error
@@ -1551,7 +1650,7 @@
 
             debugLog(
                 (
-                    "[Enhanced] "
+                    "[Inbound] "
                     + "transcription completed"
                 ),
                 finalTranscript
@@ -1646,7 +1745,7 @@
         ) {
             console.warn(
                 (
-                    "[Enhanced] Backend "
+                    "[Inbound] Backend "
                     + "WebSocket is not open."
                 )
             );
@@ -1770,7 +1869,7 @@
 
                             debugLog(
                                 (
-                                    "[Enhanced] "
+                                    "[Inbound] "
                                     + "speech start"
                                 ),
                                 {
@@ -1836,7 +1935,7 @@
 
         debugLog(
             (
-                "[Enhanced] committing "
+                "[Inbound] committing "
                 + "OpenAI audio turn"
             )
         );
@@ -1883,7 +1982,7 @@
 
                                 console.warn(
                                     (
-                                        "[Enhanced] Selected audio "
+                                        "[Inbound] Selected audio "
                                         + "output disappeared. "
                                         + "Falling back to default."
                                     ),
@@ -1933,8 +2032,8 @@
         catch (error) {
             console.warn(
                 (
-                    "[Enhanced] Unable to apply "
-                    + "selected audio output. "
+                    "[Inbound] Unable to apply "
+                    + "selected Local Monitor output. "
                     + "Falling back to default."
                 ),
                 error
@@ -1967,7 +2066,7 @@
             catch (error) {
                 console.warn(
                     (
-                        "[Enhanced] Could not resume "
+                        "[Inbound] Could not resume "
                         + "playback AudioContext"
                     ),
                     error
@@ -2013,7 +2112,7 @@
             catch (error) {
                 console.warn(
                     (
-                        "[Enhanced] Audio output "
+                        "[Inbound] Audio output "
                         + "playback could not start yet"
                     ),
                     error
@@ -2046,7 +2145,7 @@
                 error => {
                     console.warn(
                         (
-                            "[Enhanced] Unable to apply "
+                            "[Inbound] Unable to apply "
                             + "changed audio output"
                         ),
                         error
@@ -2123,7 +2222,7 @@
 
                                 console.warn(
                                     (
-                                        "[Enhanced] Selected local "
+                                        "[Inbound] Selected local "
                                         + "monitor disappeared. "
                                         + "Falling back to default."
                                     ),
@@ -2192,70 +2291,11 @@
 
 
     async function syncEnhancedLocalMonitor() {
-        if (
-            !localMonitoringEnabled()
-            || !playbackStreamDestination
-        ) {
-            releaseEnhancedMonitorAudio();
-            return;
-        }
-
-        if (
-            monitorConflictsWithPrimary()
-        ) {
-            releaseEnhancedMonitorAudio();
-
-            console.warn(
-                (
-                    "[Enhanced] Local monitor and primary "
-                    + "output are the same stored device. "
-                    + "Monitoring is suppressed."
-                )
-            );
-
-            return;
-        }
-
-        const manager =
-            await ensureMonitorOutputManager();
-
-        if (
-            !monitorAudioElement
-        ) {
-            monitorAudioElement =
-                await manager
-                    .createAudioElement({
-                        autoplay:
-                            true,
-
-                        controls:
-                            false,
-
-                        muted:
-                            false,
-                    });
-        }
-
-        await manager
-            .attachMediaStream(
-                monitorAudioElement,
-                playbackStreamDestination
-                    .stream
-            );
-
-        try {
-            await monitorAudioElement
-                .play();
-        }
-        catch (error) {
-            console.warn(
-                (
-                    "[Enhanced] Local monitor "
-                    + "playback could not start yet"
-                ),
-                error
-            );
-        }
+        /*
+         * No secondary playback element is needed.
+         * AUDIO_OUTPUT_STORAGE_KEY is already Local Monitor.
+         */
+        releaseEnhancedMonitorAudio();
     }
 
 
@@ -2264,21 +2304,16 @@
     ) {
         if (
             event.key
-                !== MONITOR_OUTPUT_STORAGE_KEY
-            && event.key
-                !== MONITOR_ENABLED_STORAGE_KEY
+            !== MONITOR_OUTPUT_STORAGE_KEY
         ) {
             return;
         }
 
-        syncEnhancedLocalMonitor()
+        applyStoredAudioOutput()
             .catch(
                 error => {
                     console.warn(
-                        (
-                            "[Enhanced] Unable to update "
-                            + "local monitor"
-                        ),
+                        "[Inbound] Unable to apply Local Monitor output",
                         error
                     );
                 }
@@ -2310,7 +2345,7 @@
                     error => {
                         console.warn(
                             (
-                                "[Enhanced] Could not "
+                                "[Inbound] Could not "
                                 + "resume playback "
                                 + "AudioContext"
                             ),
@@ -2507,7 +2542,7 @@
         else {
             console.warn(
                 (
-                    "[Enhanced] Audio output bridge "
+                    "[Inbound] Local Monitor audio bridge "
                     + "is not initialized. "
                     + "Using default audio destination."
                 )
@@ -2531,7 +2566,7 @@
         }
 
         debugLog(
-            "[Enhanced] scheduling PCM audio",
+            "[Inbound] scheduling PCM audio",
             {
                 samples:
                     samples.length,
@@ -2717,6 +2752,8 @@
         }
 
         try {
+            validateInboundRouting();
+
             started =
                 true;
 
@@ -2772,7 +2809,7 @@
 
             debugLog(
                 (
-                    "[Enhanced] session started"
+                    "[Inbound] session started"
                 ),
                 {
                     provider:
@@ -2791,7 +2828,7 @@
         }
         catch (error) {
             console.error(
-                "[Enhanced] Start failed",
+                "[Inbound] Start failed",
                 error
             );
 
@@ -3024,13 +3061,6 @@
             command.id;
 
         if (
-            command.outboundMode
-            !== FULL_DUPLEX_MODE
-        ) {
-            return;
-        }
-
-        if (
             command.action
             === "start"
         ) {
@@ -3075,7 +3105,7 @@
         ).catch(
             error => {
                 console.error(
-                    "[FullDuplex][Enhanced] command failed",
+                    "[FullDuplex][Inbound] command failed",
                     error
                 );
 
@@ -3083,7 +3113,7 @@
                     "error",
                     (
                         error.message
-                        || "Enhanced command failed"
+                        || "Inbound command failed"
                     )
                 );
             }
@@ -3098,8 +3128,6 @@
         if (
             !desired
             || !desired.active
-            || desired.outboundMode
-                !== FULL_DUPLEX_MODE
         ) {
             return;
         }
@@ -3108,7 +3136,7 @@
             .catch(
                 error => {
                     console.error(
-                        "[FullDuplex][Enhanced] auto-start failed",
+                        "[FullDuplex][Inbound] auto-start failed",
                         error
                     );
                 }
