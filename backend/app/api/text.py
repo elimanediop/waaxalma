@@ -17,6 +17,7 @@ from app.models.response_models import (
     TranslateAndSpeakResponse,
 )
 from app.skills import speech_skill, translation_skill
+from app.orchestration.result_handler import require_agent_output
 
 router = APIRouter(prefix="/api/text", tags=["text"])
 
