@@ -8,34 +8,39 @@ Its mission is to help people communicate across languages by combining speech r
 
 ---
 
-## ✨ Highlights — v0.4.2
+## ✨ Highlights — v0.4.4
 
-Waaxalma v0.4.2 adds **Realtime Enhanced Streaming** while preserving the existing standard interpreter pipelines and the v0.4.1 **Realtime Direct** mode.
+Waaxalma v0.4.4 adds **Conferencing Audio & Device Control** on top of the
+Universal Audio Output bridge introduced in v0.4.3.
 
-The framework now exposes three execution models:
+The release focuses on the primary product path:
 
 ```text
-Standard
-  Request / response
-  Configurable pipelines
-  Context + Quality stages
-
-Realtime Direct
-  Provider-native realtime translation
-  Optimized for low latency
-
-Realtime Enhanced
-  Streaming STT
-    → authoritative final transcript
-    → terminology + rolling context
-    → streaming translation
-    → incremental TTS
-    → jitter-buffered audio playback
+Physical microphone
+        ↓
+Explicit Audio Input
+        ↓
+Standard / Direct / Enhanced
+        ↓
+Translated audio
+        ├── Primary / Conference Output → Virtual Audio Cable → Teams / Meet / Zoom
+        └── Local Monitor               → Headphones
 ```
+
+v0.4.4 removes the dependency on the Windows default microphone, adds an
+independent local-monitor path, improves the Streamlit audio workspace, and
+keeps conferencing integration application-agnostic by treating browser audio
+devices as the integration boundary.
+
+Inbound conference capture, inbound translation, and Full Duplex coordination
+are included as **experimental capabilities**. They are not release-blocking
+for v0.4.4 because the primary milestone is reliable outbound
+**Waaxalma → conferencing application** audio delivery.
 
 The architectural principle remains unchanged:
 
-> **Add an agent, provider, pipeline, or realtime capability without changing the API or orchestration core.**
+> **Add an agent, provider, pipeline, realtime capability, or audio-device
+> integration without changing the API or orchestration core.**
 
 ---
 
@@ -74,6 +79,21 @@ The architectural principle remains unchanged:
 - 📈 Realtime latency measurements
 - 🚀 FastAPI backend
 - 🖥️ Streamlit client
+- 🔊 Universal browser audio-output selection
+- 🎤 Explicit realtime input-device selection
+- 🎧 Independent local-monitor output
+- 🎛️ Consolidated Streamlit audio-device workspace
+- 🔁 Conferencing-aware device persistence
+- 🎙️ Experimental conference-input capture
+- 🌐 Experimental inbound conference translation
+- 🔄 Experimental Full Duplex session coordination
+- 🎧 Output-device discovery and refresh
+- 🎛️ `HTMLMediaElement.setSinkId()` routing
+- 🔌 Shared `AudioOutputManager`
+- 🧵 Standard / Direct / Enhanced output convergence
+- 🎚️ Virtual audio cable routing for conferencing
+- 💻 Microsoft Teams conferencing bridge validated with Microsoft Edge
+- 🖼️ Streamlit embedded clients migrated to `st.iframe`
 - ✅ Automated resilience, composition, realtime, and regression tests
 
 ---
@@ -153,7 +173,7 @@ Providers are resolved through `ProviderRegistry` by:
 capability + provider name
 ```
 
-Default v0.4.2 provider mapping:
+Default v0.4.4 provider mapping:
 
 ```text
 translation               / openai
@@ -295,7 +315,7 @@ Realtime Direct deliberately bypasses the standard Context and Quality stages.
 
 ---
 
-## Realtime Enhanced — v0.4.2
+## Realtime Enhanced — v0.4.2+
 
 Realtime Enhanced decomposes realtime interpretation into explicit streaming capabilities.
 
@@ -399,6 +419,118 @@ Enhanced playback includes:
 
 ---
 
+
+## 🎛️ Conferencing Audio & Device Control — v0.4.4
+
+v0.4.4 extends the v0.4.3 `AudioOutputManager` with explicit realtime input
+selection and a separate local-monitor destination.
+
+### Primary conferencing path
+
+```text
+Physical microphone
+    ↓
+AudioInputManager
+    ↓
+Direct / Enhanced
+    ↓
+translated audio
+    ↓
+AudioOutputManager
+    ↓
+Primary / Conference Output
+    ↓
+Virtual Audio Cable
+    ↓
+Teams / Meet / Zoom microphone
+```
+
+The physical microphone is selected explicitly through
+`waaxalma.audioInputDeviceId`. Direct and Enhanced therefore no longer depend
+on whichever input Windows exposes as the global default.
+
+### Independent local monitoring
+
+Translated audio can be monitored locally without using Windows
+**Listen to this device**:
+
+```text
+translated audio
+    ├── Primary / Conference Output → virtual cable
+    └── Local Monitor               → headphones
+```
+
+The monitor path uses:
+
+```text
+waaxalma.monitorOutputDeviceId
+waaxalma.monitorEnabled
+```
+
+Direct duplicates the translated WebRTC `MediaStream` to independently managed
+conference and monitor audio elements. Enhanced keeps its existing PCM
+scheduler and `MediaStreamAudioDestinationNode`, then exposes that stream to
+independent output sinks. Standard mirrors generated audio through the same
+device-control model.
+
+### Streamlit audio workspace
+
+The browser device controls are grouped under one
+**Audio Devices & Conferencing** workspace with dedicated tabs for:
+
+```text
+Microphone
+Conference Output
+Local Monitor
+Conference Input
+```
+
+The application uses Streamlit wide layout and `st.iframe`, reducing vertical
+scrolling while keeping device routing separate from interpretation controls.
+
+### Conferencing bridge
+
+The validated outbound integration remains application-agnostic:
+
+```text
+Waaxalma
+    → virtual audio playback endpoint
+    → virtual audio recording endpoint
+    → conferencing application microphone
+```
+
+Microsoft Edge remains the validated reference browser for the real Teams
+bridge. Chrome exposed and selected the virtual output after site
+audio-device permission was granted, but the remote Teams participant did not
+receive audio in the tested v0.4.3 setup.
+
+### Experimental inbound / Full Duplex path
+
+v0.4.4 also contains experimental building blocks for:
+
+```text
+Conference Input
+    → streaming STT
+    → translation
+    → TTS
+    → Local Monitor
+```
+
+plus Full Duplex Start / Stop coordination between outbound and inbound
+clients.
+
+These features require a second independent virtual audio path for proper
+end-to-end validation and are **not part of the blocking v0.4.4 release
+acceptance criteria**.
+
+The release acceptance path remains:
+
+```text
+Waaxalma
+    → virtual audio cable
+    → Teams / Meet / Zoom
+```
+
 ## 🎤 Turn Detection
 
 Enhanced currently uses a lightweight browser-side RMS voice activity detector.
@@ -469,7 +601,7 @@ Realtime behavior additionally includes:
 - normalized session-creation failures;
 - controlled Direct reconnect behavior;
 - WebSocket disconnect handling;
-- clean Stop / resource teardown;
+- clean Stop / resource teardown, including managed audio-output elements;
 - browser logging quiet by default;
 - detailed internal timing available at debug level.
 
@@ -553,7 +685,7 @@ Browser Enhanced metrics are tracked per utterance.
 
 ## 📈 Realtime Performance Baselines
 
-These are observed local benchmark results, not service-level guarantees.
+These are observed local benchmark results from the v0.4.1/v0.4.2 realtime work, not service-level guarantees. v0.4.3 did not re-baseline provider latency.
 
 ### Realtime Direct baseline
 
@@ -629,6 +761,8 @@ From the repository root:
 python -m streamlit run streamlit/streamlit_app.py
 ```
 
+The Streamlit interface exposes one global browser-side **Audio Output** selector used by Standard, Direct, and Enhanced playback.
+
 The realtime interface lets the user choose:
 
 ```text
@@ -694,14 +828,16 @@ From the `backend` directory:
 python -m pytest -q
 ```
 
-Current v0.4.2 regression status:
+Last full backend regression baseline (v0.4.2):
 
 ```text
 216 passed
 0 failed
 ```
 
-A known non-blocking Starlette `TestClient` / `httpx` deprecation warning remains outside the v0.4.2 scope.
+A known non-blocking Starlette `TestClient` / `httpx` deprecation warning remains outside the v0.4.x scope.
+
+v0.4.4 is primarily a browser/Streamlit conferencing-device-control release. The full backend regression suite was rerun before freeze: **216 passed, 1 known non-blocking warning, 0 failed**.
 
 Focused test examples:
 
@@ -717,29 +853,31 @@ python -m pytest tests/services/test_realtime_enhanced_processor_context.py -q
 
 ## 🚀 Current Status
 
-### v0.4.2 — Realtime Enhanced Streaming
+### v0.4.3 — Universal Audio Output & Conferencing Bridge
 
-Implemented and validated:
+Implemented and manually validated:
 
-- Realtime Direct retained as the provider-native latency path;
-- Realtime Enhanced added as a controllable streaming path;
-- streaming STT provider contract;
-- explicit source-language selection;
-- terminology and keyword hints;
-- final STT transcript as authoritative translation input;
-- three-segment rolling source context;
-- ASR-aware streaming translation;
-- streaming speech provider contract;
-- concurrent translation and TTS;
-- speakable-text buffering;
-- PCM16 carry-byte continuity;
-- 20 ms browser playback jitter buffer;
-- ~320 ms local VAD silence window;
-- per-utterance browser latency measurements;
-- WebSocket disconnect hardening;
-- production logging cleanup;
-- dedicated final-transcript / rolling-context regression tests;
-- full backend regression suite passing with **216 tests**.
+- global audio-output discovery and selection;
+- shared browser-side `AudioOutputManager`;
+- persisted selected output device;
+- Standard interpreted audio routed through a managed browser audio element;
+- Direct WebRTC translated audio routed through the selected output;
+- Enhanced PCM playback routed through `MediaStreamAudioDestinationNode` and the selected output;
+- Enhanced PCM carry-byte handling retained;
+- Enhanced 20 ms jitter buffer retained;
+- output cleanup on Stop / unload;
+- virtual audio cable routing with VB-Audio Virtual Cable;
+- `CABLE Input` → `CABLE Output` transport validated;
+- Microsoft Teams microphone bridge using `CABLE Output`;
+- real Teams call validated end-to-end with Microsoft Edge;
+- Streamlit embedded HTML migrated from deprecated `st.components.v1.html` to `st.iframe`;
+- temporary routing diagnostics removed from the production UI.
+
+Known limitation:
+
+- Chrome can require explicit site audio-device permission before all outputs are visible. In the tested Teams setup, Edge delivered the virtual-cable audio to the remote participant while Chrome did not, despite exposing and selecting the same output device.
+
+No native conferencing SDK is required for this release.
 
 ---
 
@@ -755,7 +893,7 @@ It includes:
 - Architecture Decision Records;
 - agent, pipeline, provider, and realtime design documentation.
 
-The v0.4.2 Architecture & Vision Book documents the standard framework, Realtime Direct, and Realtime Enhanced execution models.
+The v0.4.4 Architecture & Vision Book documents the standard framework, Realtime Direct, Realtime Enhanced, universal audio output, explicit input-device control, independent local monitoring, and the experimental inbound/full-duplex extensions.
 
 ---
 
@@ -768,8 +906,9 @@ The v0.4.2 Architecture & Vision Book documents the standard framework, Realtime
 | **v0.3.0** | Reliability | Validation, async execution, retries, timeouts, tracing, metrics | Released |
 | **v0.4.0** | Framework Next | Registries, interchangeable providers, configurable pipelines, Context & Quality | Released |
 | **v0.4.1** | Realtime Translation & Voice Configuration | Realtime Direct, WebRTC, voice configuration, realtime observability | Released |
-| **v0.4.2** | Realtime Enhanced Streaming | Streaming STT → context / terminology → translation → streaming TTS | Current |
-| **v0.4.3** | Virtual Audio Output & Conferencing Bridge | Route translated audio to selectable / virtual audio outputs for conferencing tools | Next |
+| **v0.4.2** | Realtime Enhanced Streaming | Streaming STT → context / terminology → translation → streaming TTS | Released |
+| **v0.4.3** | Universal Audio Output & Conferencing Bridge | Shared output selection across Standard / Direct / Enhanced; virtual-cable conferencing bridge | Released |
+| **v0.4.4** | Conferencing Audio & Device Control | Explicit microphone selection, independent local monitoring, conferencing device workspace; inbound/full-duplex capabilities experimental | Current release |
 | **v0.5.0** | Product Readiness | Persistent sessions, security, packaging, CI/CD, production observability | Planned |
 | **v1.0.0** | Stable Framework | Production-ready open-source voice agent framework | Target |
 
@@ -780,6 +919,9 @@ The v0.4.2 Architecture & Vision Book documents the standard framework, Realtime
 The Streamlit interface provides:
 
 ```text
+Audio Output
+    └── selectable browser output device
+
 Standard Interpretation
 Live Translation
     ├── Direct

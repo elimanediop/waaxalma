@@ -5,67 +5,405 @@ All notable changes to **Waaxalma** are documented here.
 The project follows semantic versioning where practical.
 
 ---
-# [v0.4.2] — Realtime Enhanced Streaming
 
-v0.4.2 introduces a new Realtime Enhanced execution mode focused on
-transparency, terminology control and composable realtime voice processing.
+## [v0.4.4] — Conferencing Audio & Device Control — 2026-10-01
 
-The Enhanced pipeline now supports:
+### Added
 
+#### Explicit Realtime Input Selection
+
+- Added shared browser-side `WaaxalmaAudioInputManager`.
+- Added explicit microphone discovery and selection for Realtime Direct and
+  Realtime Enhanced.
+- Added browser persistence through:
+
+```text
+waaxalma.audioInputDeviceId
+```
+
+- Direct and Enhanced no longer require the Windows global default microphone.
+- Added safe fallback to the browser default if the selected physical
+  microphone disappears.
+
+#### Independent Local Monitoring
+
+- Added a separate Local Monitor destination for translated audio.
+- Added browser persistence through:
+
+```text
+waaxalma.monitorOutputDeviceId
+waaxalma.monitorEnabled
+```
+
+- Direct can play the same translated WebRTC stream to the conferencing output
+  and local headphones independently.
+- Enhanced fans the existing `MediaStreamAudioDestinationNode` stream to
+  independent conference and monitor sinks without changing PCM scheduling.
+- Standard generated audio can be mirrored to an independent monitor device.
+- Added same-device protection to avoid duplicate playback when conference and
+  monitor sinks resolve to the same device.
+
+#### Streamlit Audio Workspace
+
+- Switched the main application layout to `wide`.
+- Grouped device controls under **Audio Devices & Conferencing**.
+- Added dedicated tabs for Microphone, Conference Output, Local Monitor, and
+  Conference Input.
+- Kept `st.iframe` as the embedded-client mechanism.
+
+#### Experimental Conference Input / Inbound Translation
+
+- Added `WaaxalmaConferenceInputManager`.
+- Added explicit conference-input selection and persistence through:
+
+```text
+waaxalma.conferenceInputDeviceId
+```
+
+- Added conference-input signal diagnostics using RMS / dBFS.
+- Added an experimental inbound path that reuses the existing Enhanced
+  endpoints:
+
+```text
+POST /api/realtime/enhanced/session
+WS   /api/realtime/enhanced/stream
+```
+
+- Inbound TTS is bound to Local Monitor only and is not routed to
+  Primary / Conference Output.
+- Added experimental Full Duplex Start / Stop coordination and fail-safe
+  direction shutdown using same-origin browser storage.
+
+### Improved
+
+- Preserved Direct reconnect and WebRTC behavior while making microphone
+  selection deterministic.
+- Preserved Enhanced final-transcript authority, rolling context,
+  terminology, PCM16 carry-byte continuity, ordered playback and the 20 ms
+  jitter buffer.
+- Removed reliance on Windows **Listen to this device** for local monitoring.
+- Clarified the conferencing integration boundary: Waaxalma integrates through
+  standard browser audio devices rather than Teams/Meet/Zoom-specific SDKs.
+- Added `tools/README.md` guidance for external virtual-audio prerequisites
+  without committing third-party installers.
+
+### Release Scope
+
+The blocking v0.4.4 product path is outbound conferencing:
+
+```text
+Physical microphone
+    → Waaxalma
+    → translated audio
+    → Primary / Conference Output
+    → virtual audio cable
+    → Teams / Meet / Zoom microphone
+```
+
+Inbound conference capture, inbound translation, and Full Duplex coordination
+are included as experimental capabilities and are not required to declare
+v0.4.4 released.
+
+### Manual Validation
+
+Validated during v0.4.4 development:
+
+```text
+✅ explicit physical microphone selection
+✅ Realtime Direct uses the selected microphone
+✅ Realtime Enhanced uses the selected microphone
+✅ independent Local Monitor output
+✅ translated audio can reach conference output and headphones concurrently
+✅ no Windows "Listen to this device" required
+```
+
+The previously validated real Microsoft Teams bridge remains the reference
+outbound conferencing POC:
+
+```text
+Waaxalma → VB-CABLE → Teams → remote participant
+```
+
+with Microsoft Edge as the validated reference browser.
+
+### Tests
+
+Final backend freeze regression:
+
+```text
+216 passed
+0 failed
+1 known non-blocking warning
+14.90 s
+```
+
+Known warning:
+
+```text
+StarletteDeprecationWarning:
+Using httpx with starlette.testclient is deprecated;
+install httpx2 instead.
+```
+
+The warning is intentionally deferred beyond v0.4.4 because it does not affect
+the conferencing/device-control release behavior.
+
+### Architecture
+
+v0.4.4 keeps execution and audio routing responsibilities separate:
+
+```text
+Physical microphone
+    ↓
+AudioInputManager
+    ↓
+Direct / Enhanced
+    ↓
+translated audio
+    ├── Primary / Conference Output → virtual cable → conferencing app
+    └── Local Monitor               → headphones
+```
+
+Experimental inbound direction:
+
+```text
+conferencing app
+    → independent virtual path
+    → ConferenceInputManager
+    → Enhanced STT / Translation / TTS
+    → Local Monitor
+```
+
+---
+
+## [v0.4.3] — Universal Audio Output & Conferencing Bridge — 2026-10-01
+
+### Added
+
+#### Universal Audio Output
+
+- Added shared browser-side `WaaxalmaAudioOutputManager`.
+- Added output-device discovery through `navigator.mediaDevices.enumerateDevices()`.
+- Added output-device routing through `HTMLMediaElement.setSinkId()`.
+- Added global Streamlit **Audio Output** selector.
+- Added output-device refresh and browser permission-aware device discovery.
+- Added browser-side persistence of the selected device using:
+
+```text
+waaxalma.audioOutputDeviceId
+```
+
+#### Standard Output Routing
+
+- Added `standard_audio_player.html`.
+- Routed Standard interpreted-result playback through a managed `HTMLAudioElement`.
+- Standard generated audio can now target the same selected output device as realtime modes.
+- Preserved the Standard microphone/upload input path.
+
+#### Realtime Direct Output Routing
+
+- Routed the translated WebRTC remote stream through a managed `HTMLAudioElement`.
+- Applied the selected sink to Direct translated audio.
+- Preserved Direct WebRTC session flow, transcript events, telemetry, reconnect behavior, microphone reuse, and cleanup semantics.
+
+#### Realtime Enhanced Output Routing
+
+- Added `MediaStreamAudioDestinationNode` as the final Enhanced playback bridge.
+- Routed scheduled Enhanced PCM audio to a managed `HTMLAudioElement`.
+- Applied the selected sink to Enhanced translated audio.
+- Preserved PCM16 carry-byte continuity, odd-chunk handling, the 20 ms jitter buffer, ordered `nextPlaybackTime` scheduling, final-transcript authority, rolling source context, terminology, and per-utterance latency metrics.
+
+#### Conferencing Bridge
+
+- Validated VB-Audio Virtual Cable as an application-agnostic conferencing bridge.
+
+Reference mapping:
+
+```text
+Waaxalma output
+    → CABLE Input (VB-Audio Virtual Cable)
+    → VB-CABLE
+    → CABLE Output (VB-Audio Virtual Cable)
+    → conferencing application microphone
+```
+
+- Validated Microsoft Teams microphone input using `CABLE Output`.
+- Validated a real Teams call end-to-end with Microsoft Edge: the remote participant received Waaxalma translated audio.
+- Kept Teams speaker output on a physical headset / speaker device so incoming meeting audio remains audible locally.
+
+### Improved
+
+#### Streamlit Embedding
+
+- Replaced deprecated `st.components.v1.html` usage with `st.iframe`.
+- Kept the shared output-manager script injected into embedded Direct and Enhanced clients.
+- Removed temporary visible audio-routing diagnostics after validation.
+- Removed the temporary **Test output** diagnostic control from the production selector.
+
+#### Resource Management
+
+- Added managed audio-element registration/unregistration.
+- Added output-device fallback when the selected device disappears.
+- Added cleanup of managed output elements during Stop / unload.
+- Kept Enhanced Web Audio context cleanup and Direct WebRTC cleanup independent from the shared output layer.
+
+### Browser / Environment Notes
+
+- Browser audio-device permission may be required before non-default outputs appear in `enumerateDevices()`.
+- Microsoft Edge is the validated reference browser for the v0.4.3 Teams bridge.
+- In the tested environment, Chrome exposed and selected `CABLE Input` after permission was granted, but a remote Teams participant did not receive the audio through the same setup.
+- Windows default recording/input should remain the physical microphone used by Waaxalma.
+- `CABLE Output` should be selected specifically as the conferencing application's microphone rather than made the Windows global default input.
+- Windows **Listen to this device** on `CABLE Output` should remain disabled during normal conferencing to avoid acoustic feedback loops.
+
+### Out of Scope
+
+- Native Microsoft Graph / Teams calling bot integration.
+- Automatic meeting joining.
+- Inbound conference-participant audio capture.
+- Bidirectional conferencing translation.
+- Explicit Waaxalma input-device selection.
+- Separate local monitor output (`monitor_device_id`).
+- Realtime provider latency re-baselining.
+
+### Validation
+
+Manually validated:
+
+```text
+Standard  → AudioOutputManager → CABLE Input → CABLE Output
+Direct    → AudioOutputManager → CABLE Input → CABLE Output
+Enhanced  → AudioOutputManager → CABLE Input → CABLE Output
+```
+
+Conferencing validation:
+
+```text
+Physical microphone
+    → Waaxalma
+    → translated audio
+    → CABLE Input
+    → CABLE Output
+    → Microsoft Teams microphone
+    → remote participant
+```
+
+The real Teams call succeeded with Microsoft Edge.
+
+The last full backend regression baseline remains the v0.4.2 result:
+
+```text
+216 passed
+0 failed
+```
+
+The full backend suite should be rerun immediately before creating the Git tag.
+
+### Architecture
+
+v0.4.3 does not merge the three audio-generation pipelines.
+
+```text
+Standard generated audio ─┐
+Direct WebRTC audio      ─┼─→ AudioOutputManager → selected sink
+Enhanced streamed PCM    ─┘
+```
+
+`AudioOutputManager` owns only the browser playback destination.
+
+---
+
+## [v0.4.2] — Realtime Enhanced Streaming — 2026-09-30
+
+### Added
+
+- Added Realtime Enhanced as a second explicit realtime execution mode.
+- Added `StreamingTranscriptionProvider`.
+- Added `StreamingTranslationProvider`.
+- Added `StreamingSpeechProvider`.
+- Added OpenAI streaming transcription using `gpt-live-transcribe`.
+- Added OpenAI streaming translation using `gpt-4.1-mini`.
+- Added OpenAI streaming speech using `gpt-4o-mini-tts`.
+- Added:
+
+```text
+POST /api/realtime/enhanced/session
+WS   /api/realtime/enhanced/stream
+```
+
+- Added explicit source-language selection.
+- Added terminology / keyword hints.
+- Added live source transcript.
+- Added three-segment rolling source context.
+- Added `SpeakableTextBuffer`.
+- Added overlapping streaming translation and speech synthesis.
+- Added per-utterance latency metrics.
+
+### Improved
+
+- Made the final STT transcript authoritative for translation.
+- Kept partial STT deltas for live UI feedback only.
+- Added ASR-aware translation behavior.
+- Added PCM16 carry-byte continuity for odd-sized network chunks.
+- Added ordered Web Audio scheduling.
+- Added minimum 20 ms playback jitter buffering.
+- Added approximately 320 ms local VAD silence window for utterance commit.
+- Hardened WebSocket disconnect handling.
+- Reduced production browser/backend logging noise.
+
+### Performance / Observed Baseline
+
+10-segment local warm-path sample:
+
+| Metric | p50 | p95 |
+| --- | ---: | ---: |
+| Commit → first translation | ~0.55 s | ~0.75 s |
+| Translation → first audio | ~0.60 s | ~0.81 s |
+| Commit → first audio | ~1.17 s | ~1.46 s |
+| TTS start → first audio | ~0.51 s | ~0.69 s |
+
+Observed values are not service-level guarantees.
+
+### Tests
+
+Full backend regression result:
+
+```text
+216 passed
+0 failed
+```
+
+Known non-blocking warning:
+
+```text
+StarletteDeprecationWarning:
+Using httpx with starlette.testclient is deprecated;
+install httpx2 instead.
+```
+
+### Architecture
+
+Enhanced remains separate from the standard `AgentOrchestrator` / `SequentialPipeline` execution path.
+
+```text
 Microphone
-→ Streaming STT
-→ Final source transcript
-→ Rolling context + terminology
-→ Streaming Translation
-→ Speakable text segmentation
-→ Streaming TTS
-→ PCM jitter-buffered playback
-
-Unlike Realtime Direct, which optimizes for the lowest possible provider-backed
-translation latency, Enhanced mode exposes the source transcript and allows
-Waaxalma to apply terminology and conversational context before speech synthesis.
-
-Key improvements include:
-
-- explicit source-language configuration;
-- authoritative final STT transcripts;
-- rolling source context;
-- ASR-aware translation;
-- concurrent streaming translation and TTS;
-- PCM16 continuity handling;
-- playback jitter buffering;
-- per-utterance latency measurements;
-- hardened WebSocket disconnect behavior.
-
-Observed Enhanced warm-path performance over a 10-segment benchmark:
-
-- translation p50: ~548 ms;
-- translation p95: ~752 ms;
-- first audio p50: ~1.17 s;
-- first audio p95: ~1.46 s.
-
-Test status:
-
-- 216 tests passed;
-- 0 failures.
-
-v0.4.2 completes the Enhanced realtime streaming foundation while preserving
-the existing Realtime Direct mode and the provider-independent architecture
-introduced in v0.4.
-
-## Architecture
-
-v0.4.1
-Realtime Direct
     ↓
-provider-backed low-latency speech translation
-
-v0.4.2
-Realtime Enhanced
+Streaming STT
     ↓
-STT → context / terminology → translation → TTS
+Authoritative final transcript
+    ↓
+Rolling context + terminology
+    ↓
+Streaming translation
+    ↓
+SpeakableTextBuffer
+    ↓
+Streaming TTS
+    ↓
+PCM16 / jitter-buffered browser playback
+```
 
-Direct optimizes latency. Enhanced optimizes control, observability and extensibility.
+---
 
 ## [v0.4.1] — Realtime Translation & Voice Configuration
 
