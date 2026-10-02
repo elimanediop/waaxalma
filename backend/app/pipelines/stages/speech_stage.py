@@ -43,7 +43,7 @@ class SpeechStage:
             )
 
         output_filename = (
-            f"{request_id}.mp3"
+            f"{uuid.uuid4()}.mp3"
         )
 
         await trace_async_stage(

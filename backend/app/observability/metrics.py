@@ -95,9 +95,9 @@ def record_stage_execution(
     normalized_provider = provider or "internal"
 
     labels = {
-        "agent": agent,
+        "agent": agent if agent in {"interpreter", "translation", "context", "quality"} else "other",
         "stage": stage,
-        "operation": operation,
+        "operation": operation if operation in {"interpret", "interpret_audio", "translate", "speak", "translate_and_speak", "transcribe", "enrich", "evaluate"} else "other",
         "provider": normalized_provider,
         "outcome": outcome,
     }
@@ -117,8 +117,8 @@ def record_agent_execution(
     duration_ms: float,
 ) -> None:
     labels = {
-        "agent": agent,
-        "operation": operation,
+        "agent": agent if agent in {"interpreter", "translation", "context", "quality"} else "other",
+        "operation": operation if operation in {"interpret", "interpret_audio", "translate", "speak", "translate_and_speak", "transcribe", "enrich", "evaluate"} else "other",
         "outcome": outcome,
     }
 

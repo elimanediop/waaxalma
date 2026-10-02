@@ -1,3 +1,4 @@
+from app.observability.context import fields
 import uuid
 from typing import Any
 
@@ -89,7 +90,7 @@ class InterpreterAgent(BaseAgent):
 
         state = PipelineState(
             data={
-                "request_id": str(uuid.uuid4()),
+                "request_id": fields().get("request_id") or str(uuid.uuid4()),
                 "agent_name": self.name,
                 "source_text": text.strip(),
                 "target_language": target_language,
@@ -139,7 +140,7 @@ class InterpreterAgent(BaseAgent):
 
         state = PipelineState(
             data={
-                "request_id": str(uuid.uuid4()),
+                "request_id": fields().get("request_id") or str(uuid.uuid4()),
                 "agent_name": self.name,
                 "audio_path": audio_path.strip(),
                 "target_language": target_language,

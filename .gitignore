@@ -1,57 +1,16 @@
-# Python bytecode and caches
-__pycache__/
-*.py[cod]
-*$py.class
+**/.env
+**/.env.*
+!**/.env.example
+**/__pycache__/
+**/.pytest_cache/
+**/.venv*/
+**/*.egg-info/
+**/data/
+**/tmp/
+**/build/
+**/dist/
 
-# Virtual environments
-.venv/
-venv/
-env/
-
-# Build and packaging artifacts
-build/
-dist/
-*.egg-info/
-.eggs/
-pip-wheel-metadata/
-
-# Test and coverage artifacts
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-
-# Type checkers and linters
-.mypy_cache/
-.ruff_cache/
-.pyre/
-
-# Environment files
-.env
-.env.*
-.deploy/api.debug.env
-
-# Editor and OS files
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Helm packaged charts
-chart/*.tgz
-api/poetry.lock
-backend/app/__pycache__/
-backend/app/agents/__pycache__/
-backend/app/api/__pycache__/
-backend/app/static/audio/
-backend/app/__pycache__/__init__.cpython-*
-backend/app/agents/__pycache__/agent_manager.cpython-*
-backend/app/agents/__pycache__/base_agent.cpython-*
-backend/app/agents/__pycache__/interpreter_agent.cpython-*
-backend/app/agents/__pycache__/translation_agent.cpython-*
-backend/app/api/__pycache__/interpreter.cpython-*
-backend/app/api/__pycache__/text.cpython-*
-backend/app/api/__pycache__/voice.cpython-*
+**/*.sqlite3
+**/*.sqlite3-wal
+**/*.sqlite3-shm
+**/static/audio/

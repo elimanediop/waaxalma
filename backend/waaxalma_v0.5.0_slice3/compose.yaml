@@ -1,0 +1,79 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: waaxalma-backend:0.5.0-slice3
+    environment:
+      APP_ENV: production
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env}
+      HOST: 0.0.0.0
+      PORT: "8000"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SESSION_STORAGE_BACKEND: sqlite
+      DATA_DIR: /var/lib/waaxalma
+      STATIC_DIR: /var/lib/waaxalma/static
+      UPLOAD_DIR: /var/lib/waaxalma/uploads
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:8501","http://127.0.0.1:8501"]}
+      TRANSLATION_PROVIDER: ${TRANSLATION_PROVIDER:-openai}
+      SPEECH_PROVIDER: ${SPEECH_PROVIDER:-openai}
+      SPEECH_TO_TEXT_PROVIDER: ${SPEECH_TO_TEXT_PROVIDER:-openai}
+      CONTEXT_PROVIDER: ${CONTEXT_PROVIDER:-passthrough}
+      QUALITY_PROVIDER: ${QUALITY_PROVIDER:-deterministic}
+      REALTIME_TRANSLATION_PROVIDER: ${REALTIME_TRANSLATION_PROVIDER:-openai}
+      STREAMING_TRANSCRIPTION_PROVIDER: ${STREAMING_TRANSCRIPTION_PROVIDER:-openai}
+      STREAMING_TRANSLATION_PROVIDER: ${STREAMING_TRANSLATION_PROVIDER:-openai}
+      STREAMING_SPEECH_PROVIDER: ${STREAMING_SPEECH_PROVIDER:-openai}
+      OPENAI_TRANSLATION_MODEL: ${OPENAI_TRANSLATION_MODEL:-gpt-4.1-mini}
+      OPENAI_TTS_MODEL: ${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
+      OPENAI_TTS_VOICE: ${OPENAI_TTS_VOICE:-coral}
+      SPEECH_VOICE: ${SPEECH_VOICE:-marin}
+      OPENAI_TRANSCRIPTION_MODEL: ${OPENAI_TRANSCRIPTION_MODEL:-gpt-4o-transcribe}
+      REALTIME_TRANSLATION_MODEL: ${REALTIME_TRANSLATION_MODEL:-gpt-realtime-translate}
+      REALTIME_TRANSLATION_VOICE: ${REALTIME_TRANSLATION_VOICE:-marin}
+      STREAMING_TRANSCRIPTION_MODEL: ${STREAMING_TRANSCRIPTION_MODEL:-gpt-live-transcribe}
+      STREAMING_TRANSLATION_MODEL: ${STREAMING_TRANSLATION_MODEL:-}
+      STREAMING_SPEECH_MODEL: ${STREAMING_SPEECH_MODEL:-}
+      STREAMING_SPEECH_VOICE: ${STREAMING_SPEECH_VOICE:-}
+      PROVIDER_MAX_ATTEMPTS: ${PROVIDER_MAX_ATTEMPTS:-3}
+      PROVIDER_INITIAL_BACKOFF_SECONDS: ${PROVIDER_INITIAL_BACKOFF_SECONDS:-0.5}
+      PROVIDER_BACKOFF_MULTIPLIER: ${PROVIDER_BACKOFF_MULTIPLIER:-2.0}
+      PROVIDER_MAX_BACKOFF_SECONDS: ${PROVIDER_MAX_BACKOFF_SECONDS:-4.0}
+      PROVIDER_JITTER_RATIO: ${PROVIDER_JITTER_RATIO:-0.2}
+      STT_TIMEOUT_SECONDS: ${STT_TIMEOUT_SECONDS:-30}
+      TRANSLATION_TIMEOUT_SECONDS: ${TRANSLATION_TIMEOUT_SECONDS:-20}
+      TTS_TIMEOUT_SECONDS: ${TTS_TIMEOUT_SECONDS:-30}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - waaxalma-data:/var/lib/waaxalma
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  ui:
+    build:
+      context: ./streamlit
+    image: waaxalma-ui:0.5.0-slice3
+    environment:
+      APP_ENV: production
+      BACKEND_API_URL: http://backend:8000
+      PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:8000}
+      CLIENT_ID: ${CLIENT_ID:-waaxalma-for-elimane}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-120}
+    ports:
+      - "127.0.0.1:${UI_PORT:-8501}:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  waaxalma-data:

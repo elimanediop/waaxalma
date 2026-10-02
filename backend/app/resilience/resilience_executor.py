@@ -192,6 +192,10 @@ class ResilienceExecutor:
             error.code,
         )
 
+        from app.observability.metrics import record_provider_retry
+        from app.observability.events import emit
+        record_provider_retry(provider=provider, operation=operation, error_code=error.code)
+        emit("provider.retry", provider=provider, operation=operation, status="retry", error_type=error.code)
         await asyncio.sleep(delay_seconds)
 
     @staticmethod

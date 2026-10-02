@@ -6,6 +6,77 @@ The project follows semantic versioning where practical.
 
 ---
 
+## [v0.5.0] — Product Readiness — Release candidate — 2026-10-03
+
+The six readiness slices are implemented. Final tagging follows the release
+checklist and container/browser acceptance; this entry does not announce an
+already published release.
+
+### Added
+
+- **Slice 1 — Persistent sessions:** SQLite repositories, conversation metadata,
+  saved messages and explicit session lifecycle.
+- **Slice 2 — Security Boundaries:** strict `X-Client-Id`, immutable persisted
+  `owner_id`, isolation for GET/PATCH/close and interpretation referencing a
+  persisted session; idempotent migration from Slice 1 and offline legacy owner
+  assignment. Missing/invalid identity returns 401, foreign ownership 403 and
+  missing persisted sessions 404; active operations on closed sessions return 409.
+- **Slice 3 — Production Configuration & Packaging:** typed development/test/
+  production settings, liveness/readiness, Python wheel and installed backend
+  command, separate hashed backend/UI locks, pinned Docker base, non-root service
+  and documented environment variables.
+- **Slice 4 — CI/CD & Quality Gates:** clean Windows/Linux installs, syntax and
+  regression checks, optional telemetry tests, wheel installation outside the
+  checkout, container build and smoke tests, checksums and release artefacts.
+  Deployment remains independent of a cloud provider.
+- **Slice 5 — Production Observability:** structured business events with request,
+  session, execution mode, provider/model, language, latency, status and safe
+  error metadata; request correlation; provider/session/stage metrics; available
+  token usage and explicitly configured partial cost estimates; optional
+  OpenTelemetry SDK and OTLP/HTTP export.
+- **Slice 6 — Release Hardening & Governance:** opt-in cleanup of closed sessions
+  older than the configurable 30-day default, offline dry-run/apply maintenance,
+  shutdown budgets, restart ownership continuity checks, targeted secret hygiene
+  checks, security and operations documentation, release checklist and updated
+  English Architecture and Vision Book in `docs/books/`.
+
+### Fixed
+
+- Cross-platform lock completeness, including Windows transitive dependencies.
+- SQLite handles are closed reliably so Windows readiness tests can remove the
+  database; readiness and metrics do not recreate a missing database.
+- Provider telemetry retains correlation across streaming work without leaking
+  context to consumers; request identifiers are independent of audio filenames.
+- Sensitive text, prompts, audio, credentials and raw exception content are
+  excluded from business events; noisy HTTP/provider debug logs are suppressed.
+
+### Compatibility and operational limits
+
+- Protected clients must supply a valid `X-Client-Id`. Identity is self-declared,
+  not authentication: exposed deployments need a trusted authenticated ingress.
+  Legacy ownerless sessions are denied until explicitly assigned offline.
+- Standard, Direct, Enhanced and browser device control remain independent.
+  Inbound conferencing and Full Duplex remain experimental.
+- Persistent session state survives restart; provider calls, browser connections,
+  pending realtime buffers and tasks do not. Restart does not close active rows.
+- Cleanup is disabled by default and preserves active sessions. Audio files,
+  backups, logs and active-session expiry require separate retention policies.
+- Health, metrics, documentation and static audio remain separate unauthenticated
+  surfaces. Multi-worker metrics, durable jobs and cloud deployment are outside
+  this release scope. Cost estimates are not complete provider invoices.
+
+### Verification
+
+- Local Slice 6 backend: **344 passed, 4 optional SDK tests skipped**, or
+  **348 passed with the SDK**, with one existing deprecation warning.
+- Clean wheel installation, local health/ownership and native shutdown/restart
+  persistence verified. Updated Windows/Linux CI and container smoke acceptance,
+  manual browser checks and the final tag remain release checklist gates.
+- Historical audio benchmarks below are preserved; no new v0.5.0 performance
+  baseline is claimed.
+
+---
+
 ## [v0.4.4] — Conferencing Audio & Device Control — 2026-10-01
 
 ### Added

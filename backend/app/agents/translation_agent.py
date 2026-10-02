@@ -1,3 +1,4 @@
+from app.observability.context import fields
 import uuid
 
 from app.agents.base_agent import BaseAgent
@@ -106,7 +107,7 @@ class TranslationAgent(BaseAgent):
         text: str,
         target_language: str = "English",
     ) -> dict:
-        request_id = str(uuid.uuid4())
+        request_id = fields().get("request_id") or str(uuid.uuid4())
 
         translated_text = await self.translation_skill.execute(
             text=text,
@@ -124,8 +125,8 @@ class TranslationAgent(BaseAgent):
         self,
         text: str,
     ) -> dict:
-        request_id = str(uuid.uuid4())
-        output_filename = f"{request_id}.mp3"
+        request_id = fields().get("request_id") or str(uuid.uuid4())
+        output_filename = f"{uuid.uuid4()}.mp3"
 
         await self.speech_skill.execute(
             text=text,
@@ -146,14 +147,14 @@ class TranslationAgent(BaseAgent):
         text: str,
         target_language: str = "English",
     ) -> dict:
-        request_id = str(uuid.uuid4())
+        request_id = fields().get("request_id") or str(uuid.uuid4())
 
         translated_text = await self.translation_skill.execute(
             text=text,
             target_language=target_language,
         )
 
-        output_filename = f"{request_id}.mp3"
+        output_filename = f"{uuid.uuid4()}.mp3"
 
         await self.speech_skill.execute(
             text=translated_text,

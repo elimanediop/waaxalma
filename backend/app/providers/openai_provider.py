@@ -1,3 +1,5 @@
+from app.observability.operations import observe, record_usage
+from app.core.config import OPENAI_API_KEY
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -42,6 +44,7 @@ PROVIDER_NAME = "openai"
 
 # Waaxalma owns retry behavior through ResilienceExecutor.
 client = AsyncOpenAI(
+    api_key=OPENAI_API_KEY,
     max_retries=0,
 )
 
@@ -52,6 +55,7 @@ class OpenAITranslationProvider:
     def name(self) -> str:
         return PROVIDER_NAME
 
+    @observe("translation", model=OPENAI_TRANSLATION_MODEL)
     async def translate(
         self,
         text: str,
@@ -91,6 +95,7 @@ Text:
                 ),
             )
 
+            record_usage(getattr(response, "usage", None), model=OPENAI_TRANSLATION_MODEL)
             translated_text = response.output_text.strip()
 
             if not translated_text:
@@ -121,6 +126,7 @@ class OpenAISpeechProvider:
     def name(self) -> str:
         return PROVIDER_NAME
 
+    @observe("tts", model=OPENAI_TTS_MODEL)
     async def speak(
         self,
         text: str,
@@ -210,6 +216,7 @@ class OpenAISpeechToTextProvider:
     def name(self) -> str:
         return PROVIDER_NAME
 
+    @observe("stt", model=OPENAI_TRANSCRIPTION_MODEL)
     async def transcribe(
         self,
         audio_path: str,

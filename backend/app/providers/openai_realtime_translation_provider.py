@@ -1,3 +1,4 @@
+from app.observability.operations import observe, record_usage
 import httpx
 
 from app.core.realtime_translation_session import (
@@ -44,6 +45,7 @@ class OpenAIRealtimeTranslationProvider:
     def name(self) -> str:
         return "openai"
 
+    @observe("realtime_session", model=None)
     async def create_session(
         self,
         *,

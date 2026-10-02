@@ -18,17 +18,30 @@ logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    from starlette.exceptions import HTTPException
+    from fastapi.exception_handlers import http_exception_handler
+
+    @app.exception_handler(HTTPException)
+    async def http_error(request, exc):
+        from app.observability.context import enrich
+        from app.exceptions.error_codes import ErrorCode
+        known = {code.value for code in ErrorCode} | {"CLIENT_ID_REQUIRED", "INVALID_CLIENT_ID", "SESSION_ACCESS_DENIED"}
+        code = exc.detail.get("code") if isinstance(exc.detail, dict) else None
+        enrich(error_type=code if code in known else "http_error")
+        return await http_exception_handler(request, exc)
+
     @app.exception_handler(PipelineException)
     async def pipeline_exception_handler(
         request: Request,
         exc: PipelineException,
     ) -> JSONResponse:
+        from app.observability.context import enrich
+        enrich(error_type=exc.code)
         logger.warning(
-            "Pipeline failure method=%s path=%s code=%s message=%s",
+            "Pipeline failure method=%s path=%s code=%s",
             request.method,
             request.url.path,
             exc.code,
-            exc.message,
         )
 
         return JSONResponse(
@@ -43,6 +56,8 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
+        from app.observability.context import enrich
+        enrich(error_type="REQUEST_VALIDATION_ERROR")
         errors = jsonable_encoder(
             exc.errors(),
             custom_encoder={
@@ -51,7 +66,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
                 "detail": {
                     "code": "REQUEST_VALIDATION_ERROR",
@@ -68,15 +83,15 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
-        logger.exception(
+        logger.error(
             "Unexpected error method=%s path=%s",
             request.method,
             request.url.path,
-            exc_info=exc,
         )
 
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            headers={"X-Request-Id": getattr(request.state, "request_id", "")},
             content={
                 "detail": {
                     "code": ErrorCode.PIPELINE_ERROR.value,

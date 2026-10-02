@@ -1,17 +1,22 @@
+from fastapi import Depends
+from app.security.backend import resolve_security_context, require_session_access
+from app.security.security_context import SecurityContext
 from pathlib import Path
 import uuid
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from starlette import status
 
-from app.bootstrap.container import agent_manager
+from app.bootstrap.container import (
+    agent_manager,
+    session_manager,
+)
 from app.core.agent_execution_factory import AgentExecutionFactory
 from app.core.config import UPLOAD_DIR
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.pipeline_exception import PipelineException
 from app.models.response_models import InterpretTextResponse
 from app.orchestration.agent_orchestrator import AgentOrchestrator
-from app.sessions.session_manager import session_manager
 from app.validation.audio_validator import (
     AudioValidator,
     ValidatedAudio,
@@ -86,29 +91,29 @@ async def interpret_voice(
     file: UploadFile = File(...),
     target_language: str = Form("English"),
     session_id: str | None = Form(None),
+    security: SecurityContext = Depends(resolve_security_context),
 ) -> InterpretTextResponse:
     validated_audio: ValidatedAudio | None = None
-    request_id = str(uuid.uuid4())
+    from app.observability.context import fields
+    request_id = fields().get("request_id") or str(uuid.uuid4())
+    source_language: str | None = None
+    context_metadata: dict = {}
 
     try:
         if session_id:
-            session = session_manager.get_session(session_id)
-
-            if not session:
-                raise PipelineException(
-                    code=ErrorCode.SESSION_NOT_FOUND,
-                    message="Session not found.",
-                    status_code=404,
-                    details={
-                        "session_id": session_id,
-                    },
-                )
+            session = require_session_access(session_manager, session_id, security, active=True)
 
             target_language = session.target_language
+            source_language = (
+                None
+                if session.source_language == "auto"
+                else session.source_language
+            )
+            context_metadata = dict(session.metadata)
 
         validated_audio = await audio_validator.validate_and_save(
             file=file,
-            request_id=request_id,
+            request_id=str(uuid.uuid4()),
         )
 
         execution = AgentExecutionFactory.create(
@@ -128,7 +133,9 @@ async def interpret_voice(
                 },
             },
             session_id=session_id or request_id,
+            source_language=source_language,
             target_language=target_language,
+            context_metadata=context_metadata,
         )
 
         result = await agent_orchestrator.execute(
