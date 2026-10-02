@@ -63,6 +63,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+            - name: Create isolated UI environment
+        shell: bash
+        run: |
+          python -m venv .venv-ui
+          python -c "import os; from pathlib import Path; scripts = Path('.venv-ui') / ('Scripts' if os.name == 'nt' else 'bin'); f = open(os.environ['GITHUB_PATH'], 'a', encoding='utf-8'); f.write(str(scripts.resolve()) + '\n'); f.close()"
       - run: python -m pip install --require-hashes -r streamlit/requirements.lock
       - run: python -m pip check
       - uses: actions/setup-node@v4
