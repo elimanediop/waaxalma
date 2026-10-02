@@ -100,7 +100,7 @@ def test_generic_api_lists_context_and_quality_agents(
         monkeypatch
     )
 
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Client-Id": "test-client"})
 
     response = client.get(
         "/api/agents"
@@ -123,7 +123,7 @@ def test_context_agent_is_available_through_generic_api(
         monkeypatch
     )
 
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Client-Id": "test-client"})
 
     response = client.post(
         "/api/agents/context/execute",
@@ -165,7 +165,7 @@ def test_quality_agent_is_available_through_generic_api(
         monkeypatch
     )
 
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Client-Id": "test-client"})
 
     response = client.post(
         "/api/agents/quality/execute",

@@ -1,4 +1,7 @@
-from pydantic import BaseModel
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class TranslateTextResponse(BaseModel):
@@ -22,6 +25,7 @@ class TranslateAndSpeakResponse(BaseModel):
     translated_text: str
     audio_url: str
 
+
 class AgentInfoResponse(BaseModel):
     type: str
     name: str
@@ -32,6 +36,21 @@ class CreateSessionResponse(BaseModel):
     session_id: str
     agent_name: str
     target_language: str
+
+
+class SessionResponse(BaseModel):
+    owner_id: str | None = None
+    session_id: str
+    agent_name: str
+    execution_mode: str
+    source_language: str
+    target_language: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    closed_at: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    history: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class InterpretTextResponse(BaseModel):

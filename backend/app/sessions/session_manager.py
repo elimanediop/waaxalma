@@ -1,31 +1,25 @@
-from app.sessions.session_models import ConversationSession
+from app.sessions.in_memory_session_repository import (
+    InMemorySessionRepository,
+)
+from app.sessions.session_repository import SessionRepository
+from app.sessions.session_service import SessionService
 
 
-class SessionManager:
-    def __init__(self):
-        self.sessions: dict[str, ConversationSession] = {}
+class SessionManager(SessionService):
+    """Backward-compatible name for the persistent SessionService.
 
-    def create_session(
+    Direct construction without a repository keeps the historical in-memory
+    behavior. The application composition root injects SQLite by default.
+    """
+
+    def __init__(
         self,
-        agent_name: str,
-        target_language: str = "English",
-    ) -> ConversationSession:
-        session = ConversationSession.create(
-            agent_name=agent_name,
-            target_language=target_language,
+        repository: SessionRepository | None = None,
+    ) -> None:
+        super().__init__(
+            repository=(
+                repository
+                if repository is not None
+                else InMemorySessionRepository()
+            )
         )
-
-        self.sessions[session.session_id] = session
-        return session
-
-    def get_session(self, session_id: str) -> ConversationSession | None:
-        return self.sessions.get(session_id)
-
-    def add_message(self, session_id: str, role: str, content: str) -> None:
-        session = self.get_session(session_id)
-
-        if session:
-            session.add_message(role, content)
-
-
-session_manager = SessionManager()

@@ -1,3 +1,5 @@
+from app.observability.operations import observe, record_usage
+from app.core.config import OPENAI_API_KEY
 import os
 from openai import OpenAI
 
@@ -7,9 +9,10 @@ from app.core.config import (
     OPENAI_TTS_VOICE,
 )
 
-client = OpenAI()
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 
+@observe("tts", model=OPENAI_TTS_MODEL)
 def generate_speech(text: str, output_filename: str) -> str:
     os.makedirs(AUDIO_OUTPUT_DIR, exist_ok=True)
 

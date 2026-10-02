@@ -428,19 +428,14 @@ class RealtimeEnhancedProcessor:
                                     source_segment.sequence,
                                 )
 
-                            logger.debug(
-                                "[Enhanced] speakable segment "
-                                "text=%r speech_segment_sequence=%s",
-                                speakable_segment.text,
-                                speakable_segment.sequence,
-                            )
+                            logger.debug("[Enhanced] speech segment prepared")
 
                             await speech_queue.put(
                                 speakable_segment
                             )
 
             except Exception as exc:
-                logger.exception(
+                logger.error(
                     "[Enhanced] translation failed"
                 )
 
@@ -487,12 +482,7 @@ class RealtimeEnhancedProcessor:
                             source_segment.sequence,
                         )
 
-                    logger.debug(
-                        "[Enhanced] speakable flush "
-                        "text=%r speech_segment_sequence=%s",
-                        remaining_segment.text,
-                        remaining_segment.sequence,
-                    )
+                    logger.debug("[Enhanced] speech segment prepared")
 
                     await speech_queue.put(
                         remaining_segment
@@ -545,14 +535,7 @@ class RealtimeEnhancedProcessor:
                             source_segment.sequence,
                         )
 
-                    logger.debug(
-                        "[Enhanced] TTS start "
-                        "text=%r speech_segment_sequence=%s "
-                        "voice_id=%s",
-                        speakable_segment.text,
-                        speakable_segment.sequence,
-                        voice_id,
-                    )
+                    logger.debug("[Enhanced] speech segment prepared")
 
                     async for chunk in (
                         self._service.speak_stream(
@@ -638,7 +621,7 @@ class RealtimeEnhancedProcessor:
                         )
 
             except Exception as exc:
-                logger.exception(
+                logger.error(
                     "[Enhanced] TTS failed"
                 )
 

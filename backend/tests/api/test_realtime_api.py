@@ -21,7 +21,7 @@ from app.main import app
 from app.core.realtime_enhanced_session import RealtimeEnhancedSession
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Client-Id": "test-client"})
 
 class FakeRealtimeEnhancedService:
 

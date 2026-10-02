@@ -1,3 +1,4 @@
+from app.observability.operations import observe, record_usage
 from collections.abc import AsyncIterator
 
 from openai import AsyncOpenAI
@@ -45,6 +46,7 @@ class OpenAIStreamingSpeechProvider:
     def model(self) -> str:
         return self._model
 
+    @observe("tts", model=None)
     async def speak_stream(
         self,
         *,

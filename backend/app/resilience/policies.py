@@ -1,20 +1,16 @@
-import os
+from app.core.settings import get_settings
+
+settings = get_settings()
 
 from app.resilience.resilience_policy import ResiliencePolicy
 
 
-def _env_float(
-    name: str,
-    default: float,
-) -> float:
-    return float(os.getenv(name, str(default)))
+def _env_float(name: str, default: float) -> float:
+    return getattr(settings, name.lower())
 
 
-def _env_int(
-    name: str,
-    default: int,
-) -> int:
-    return int(os.getenv(name, str(default)))
+def _env_int(name: str, default: int) -> int:
+    return getattr(settings, name.lower())
 
 
 PROVIDER_MAX_ATTEMPTS = _env_int(

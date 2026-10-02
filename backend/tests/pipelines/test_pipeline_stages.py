@@ -144,14 +144,14 @@ async def test_speech_stage() -> None:
         context=context,
     )
 
-    assert (
-        result.require("audio_url")
-        .endswith("/request-123.mp3")
-    )
-
+    from pathlib import PurePosixPath
+    from uuid import UUID
+    filename = PurePosixPath(result.require("audio_url")).name
+    UUID(PurePosixPath(filename).stem)
+    assert result.require("request_id") == "request-123"
     skill.execute.assert_awaited_once_with(
         text="How are you?",
-        output_filename="request-123.mp3",
+        output_filename=filename,
     )
 
     assert context.trace.stages[-1].stage == (
@@ -219,10 +219,12 @@ async def test_audio_interpreter_pipeline() -> None:
         == "How are you?"
     )
 
-    assert (
-        result.require("audio_url")
-        .endswith("/pipeline-123.mp3")
-    )
+    from pathlib import PurePosixPath
+    from uuid import UUID
+    filename = PurePosixPath(result.require("audio_url")).name
+    UUID(PurePosixPath(filename).stem)
+    assert result.require("request_id") == "pipeline-123"
+    speech_skill.execute.assert_awaited_once_with(text="How are you?", output_filename=filename)
 
     assert pipeline.stage_names == [
         "transcription",

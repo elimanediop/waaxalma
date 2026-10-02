@@ -1,3 +1,6 @@
+from fastapi import Depends
+from app.security.backend import resolve_security_context, check_existing_session
+from app.security.security_context import SecurityContext
 from typing import Any
 
 from fastapi import APIRouter
@@ -37,7 +40,13 @@ async def list_agents():
 async def execute_agent(
     agent_name: str,
     request: AgentExecutionRequest,
+    security: SecurityContext = Depends(resolve_security_context),
 ):
+    from app.bootstrap.container import session_manager
+    check_existing_session(session_manager, request.session_id, security)
+    payload_session_id = request.payload.get("session_id")
+    if payload_session_id:
+        check_existing_session(session_manager, payload_session_id, security)
     context = SessionContext(
         session_id=request.session_id,
     )

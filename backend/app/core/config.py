@@ -1,140 +1,36 @@
-import os
+"""Compatibility names backed by the single typed Settings instance."""
 from pathlib import Path
+from app.core.settings import get_settings
 
-from dotenv import load_dotenv
-
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-
+settings = get_settings()
+BASE_DIR = Path.cwd()
 ENV_FILE = BASE_DIR / ".env"
-
-load_dotenv(ENV_FILE)
-
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-OPENAI_TRANSLATION_MODEL = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
-OPENAI_TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
-OPENAI_TTS_VOICE = os.getenv("OPENAI_TTS_VOICE", "coral")
-
-
-TRANSLATION_PROVIDER = os.getenv(
-    "TRANSLATION_PROVIDER",
-    "openai",
-).strip().lower()
-
-SPEECH_PROVIDER = os.getenv(
-    "SPEECH_PROVIDER",
-    "openai",
-).strip().lower()
-
-SPEECH_TO_TEXT_PROVIDER = os.getenv(
-    "SPEECH_TO_TEXT_PROVIDER",
-    "openai",
-).strip().lower()
-
-CONTEXT_PROVIDER = os.getenv(
-    "CONTEXT_PROVIDER",
-    "passthrough",
-).strip().lower()
-
-QUALITY_PROVIDER = os.getenv(
-    "QUALITY_PROVIDER",
-    "deterministic",
-).strip().lower()
-
-SPEECH_VOICE = os.getenv(
-    "SPEECH_VOICE",
-    "marin",
-).strip()
-
-REALTIME_TRANSLATION_PROVIDER = os.getenv(
-    "REALTIME_TRANSLATION_PROVIDER",
-    "openai",
-).strip().lower()
-
-STREAMING_TRANSCRIPTION_PROVIDER = (
-    os.getenv(
-        "STREAMING_TRANSCRIPTION_PROVIDER",
-        "openai",
-    )
-    .strip()
-    .lower()
-)
-
-
-STREAMING_TRANSCRIPTION_MODEL = (
-    os.getenv(
-        "STREAMING_TRANSCRIPTION_MODEL",
-        "gpt-live-transcribe",
-    )
-    .strip()
-)
-
-REALTIME_TRANSLATION_MODEL = os.getenv(
-    "REALTIME_TRANSLATION_MODEL",
-    "gpt-realtime-translate",
-).strip()
-
-REALTIME_TRANSLATION_VOICE = os.getenv(
-    "REALTIME_TRANSLATION_VOICE",
-    "marin",
-).strip()
-
-STREAMING_TRANSLATION_PROVIDER = (
-    os.getenv(
-        "STREAMING_TRANSLATION_PROVIDER",
-        "openai",
-    )
-    .strip()
-    .lower()
-)
-
-STREAMING_TRANSLATION_MODEL = (
-    os.getenv(
-        "STREAMING_TRANSLATION_MODEL",
-        OPENAI_TRANSLATION_MODEL,
-    )
-    .strip()
-)
-
-STREAMING_SPEECH_PROVIDER = (
-    os.getenv(
-        "STREAMING_SPEECH_PROVIDER",
-        "openai",
-    )
-    .strip()
-    .lower()
-)
-
-STREAMING_SPEECH_MODEL = (
-    os.getenv(
-        "STREAMING_SPEECH_MODEL",
-        OPENAI_TTS_MODEL,
-    )
-    .strip()
-)
-
-STREAMING_SPEECH_VOICE = (
-    os.getenv(
-        "STREAMING_SPEECH_VOICE",
-        OPENAI_TTS_VOICE,
-    )
-    .strip()
-)
-
-
-STATIC_DIR = BASE_DIR / "static"
+OPENAI_API_KEY = settings.openai_api_key.get_secret_value()
+OPENAI_TRANSLATION_MODEL = settings.openai_translation_model
+OPENAI_TTS_MODEL = settings.openai_tts_model
+OPENAI_TTS_VOICE = settings.openai_tts_voice
+TRANSLATION_PROVIDER = settings.translation_provider
+SPEECH_PROVIDER = settings.speech_provider
+SPEECH_TO_TEXT_PROVIDER = settings.speech_to_text_provider
+CONTEXT_PROVIDER = settings.context_provider
+QUALITY_PROVIDER = settings.quality_provider
+SPEECH_VOICE = settings.speech_voice
+REALTIME_TRANSLATION_PROVIDER = settings.realtime_translation_provider
+STREAMING_TRANSCRIPTION_PROVIDER = settings.streaming_transcription_provider
+STREAMING_TRANSCRIPTION_MODEL = settings.streaming_transcription_model
+REALTIME_TRANSLATION_MODEL = settings.realtime_translation_model
+REALTIME_TRANSLATION_VOICE = settings.realtime_translation_voice
+STREAMING_TRANSLATION_PROVIDER = settings.streaming_translation_provider
+STREAMING_TRANSLATION_MODEL = settings.streaming_translation_model
+STREAMING_SPEECH_PROVIDER = settings.streaming_speech_provider
+STREAMING_SPEECH_MODEL = settings.streaming_speech_model
+STREAMING_SPEECH_VOICE = settings.streaming_speech_voice
+OPENAI_TRANSCRIPTION_MODEL = settings.openai_transcription_model
+SESSION_STORAGE_BACKEND = settings.session_storage_backend
+SESSION_DB_PATH = settings.session_db_path
+STATIC_DIR = settings.static_dir
+UPLOAD_DIR = settings.upload_dir
 
 STATIC_AUDIO_DIR = STATIC_DIR / "audio"
-
 AUDIO_OUTPUT_DIR = STATIC_AUDIO_DIR
 STATIC_AUDIO_URL_PREFIX = "/static/audio"
-
-OPENAI_TRANSCRIPTION_MODEL = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-transcribe")
-UPLOAD_DIR = "tmp/uploads"
-
-if not OPENAI_API_KEY:
-    raise RuntimeError(
-        "OPENAI_API_KEY is not configured."
-    )

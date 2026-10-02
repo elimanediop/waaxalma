@@ -1,3 +1,4 @@
+from app.observability.operations import observe, record_usage
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -79,6 +80,7 @@ class OpenAIStreamingTranslationProvider:
             terminology=terminology,
         )
 
+    @observe("translation", model=None)
     async def _translate_stream(
         self,
         *,
@@ -175,6 +177,7 @@ class OpenAIStreamingTranslationProvider:
                 == "response.completed"
             ):
                 completed = True
+                record_usage(getattr(getattr(event, "response", None), "usage", None), model=self.model)
 
                 yield (
                     StreamingTranslationChunk(

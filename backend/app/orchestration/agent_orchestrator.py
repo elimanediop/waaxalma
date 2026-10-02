@@ -24,7 +24,31 @@ class AgentOrchestrator:
     ) -> None:
         self._registry = registry
 
-    async def execute(
+    async def execute(self, agent_name, agent_input, context):
+        from app.observability.context import bound, fields, request_id
+        from app.observability.events import emit
+        from app.observability.tracing import span
+        started = time.perf_counter()
+        outcome, error = "cancelled", "cancelled"
+        with bound(request_id=fields().get("request_id") or request_id(), session_id=context.session_id, source_language=context.source_language,
+                   target_language=context.target_language, operation=agent_input.operation,
+                   agent=agent_name, execution_mode=fields().get("execution_mode") or "standard"):
+            with span("waaxalma.agent") as current:
+                try:
+                    result = await self._execute_internal(agent_name, agent_input, context)
+                    outcome = "success" if result.success else "error"
+                    error = result.error_code
+                    if current is not None and not result.success:
+                        from opentelemetry.trace import Status, StatusCode
+                        current.set_status(Status(StatusCode.ERROR))
+                    return result
+                finally:
+                    duration = self._elapsed_ms(started)
+                    record_agent_execution(agent=agent_name, operation=agent_input.operation,
+                                           outcome=outcome, duration_ms=duration)
+                    emit("agent.completed", status=outcome, error_type=error, latency_ms=duration)
+
+    async def _execute_internal(
         self,
         agent_name: str,
         agent_input: AgentInput,
@@ -70,13 +94,6 @@ class AgentOrchestrator:
                 ),
             }
 
-            record_agent_execution(
-                agent=agent_name,
-                operation=agent_input.operation,
-                outcome="success" if result.success else "error",
-                duration_ms=duration_ms,
-            )
-
             return result
 
         except asyncio.CancelledError:
@@ -95,12 +112,11 @@ class AgentOrchestrator:
             logger.warning(
                 "Agent pipeline failure "
                 "agent=%s operation=%s session_id=%s "
-                "code=%s message=%s",
+                "code=%s",
                 agent_name,
                 agent_input.operation,
                 context.session_id,
                 exc.code,
-                exc.message,
             )
 
             metadata = self._build_metadata(
@@ -146,7 +162,7 @@ class AgentOrchestrator:
             )
 
         except Exception:
-            logger.exception(
+            logger.error(
                 "Unexpected agent execution failure "
                 "agent=%s operation=%s session_id=%s",
                 agent_name,

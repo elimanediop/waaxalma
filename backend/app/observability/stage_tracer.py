@@ -143,20 +143,8 @@ def _record_stage(
         duration_ms=duration_ms,
     )
 
-    logger.info(
-        "Pipeline stage completed "
-        "trace_id=%s agent=%s stage=%s operation=%s "
-        "provider=%s outcome=%s duration_ms=%.3f "
-        "error_code=%s",
-        trace.trace_id,
-        agent,
-        stage,
-        operation,
-        provider or "internal",
-        outcome,
-        duration_ms,
-        error_code,
-    )
+    from app.observability.events import emit
+    emit("stage.completed", trace_id=trace.trace_id, agent=agent, stage=stage, operation=operation, provider=provider or "internal", status=outcome, latency_ms=duration_ms, error_type=error_code)
 
 
 def _elapsed_ms(

@@ -1,3 +1,1 @@
-
-pytest
-pytest-asyncio
+-r requirements-dev.lock

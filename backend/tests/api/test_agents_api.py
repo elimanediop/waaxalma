@@ -63,7 +63,7 @@ def client(
         orchestrator,
     )
 
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"X-Client-Id": "test-client"}) as test_client:
         yield test_client
 
 

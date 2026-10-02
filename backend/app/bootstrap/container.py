@@ -19,6 +19,8 @@ from app.core.config import (
     STREAMING_TRANSLATION_PROVIDER,
     STREAMING_SPEECH_MODEL,
     STREAMING_SPEECH_PROVIDER,
+    SESSION_DB_PATH,
+    SESSION_STORAGE_BACKEND,
 )
 
 from app.orchestration.agent_orchestrator import AgentOrchestrator
@@ -69,11 +71,40 @@ from app.services.realtime_translation_service import (
     RealtimeTranslationService,
 )
 
+from app.sessions.in_memory_session_repository import (
+    InMemorySessionRepository,
+)
+from app.sessions.session_manager import SessionManager
+from app.sessions.sqlite_session_repository import (
+    SQLiteSessionRepository,
+)
+
 from app.skills.context_skill import ContextSkill
 from app.skills.quality_skill import QualitySkill
 from app.skills.speech_skill import SpeechSkill
 from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
+
+
+
+
+def build_session_manager() -> SessionManager:
+    if SESSION_STORAGE_BACKEND == "memory":
+        repository = InMemorySessionRepository()
+    elif SESSION_STORAGE_BACKEND == "sqlite":
+        repository = SQLiteSessionRepository(
+            SESSION_DB_PATH
+        )
+    else:
+        raise RuntimeError(
+            "Unsupported SESSION_STORAGE_BACKEND: "
+            f"{SESSION_STORAGE_BACKEND!r}. "
+            "Expected 'sqlite' or 'memory'."
+        )
+
+    return SessionManager(
+        repository=repository,
+    )
 
 
 def build_provider_registry() -> ProviderRegistry:
@@ -317,6 +348,8 @@ def build_orchestrator(
 # ------------------------------------------------------------------
 # Application composition root
 # ------------------------------------------------------------------
+
+session_manager = build_session_manager()
 
 provider_registry = build_provider_registry()
 

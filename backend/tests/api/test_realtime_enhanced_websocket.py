@@ -16,7 +16,7 @@ from app.core.streaming_translation_chunk import (
 from app.main import app
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Client-Id": "test-client"})
 
 
 class FakeRealtimeEnhancedService:

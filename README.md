@@ -8,7 +8,15 @@ Its mission is to help people communicate across languages by combining speech r
 
 ---
 
-## ✨ Highlights — v0.4.4
+## Product Readiness — v0.5.0 release candidate
+
+The six readiness slices add persistent SQLite sessions with immutable client owners, strict X-Client-Id boundaries, typed configuration, wheel/container packaging, Windows/Linux quality gates, business observability, retention and release governance. X-Client-Id remains self-declared identity, not authentication. The final tag follows the [release checklist](docs/release-v0.5.0.md).
+
+Start the portable backend/UI stack with `docker compose up --build -d` after configuring your root `.env`. Health: `/health/live` and `/health/ready`; metrics: `/metrics`; UI: `http://localhost:8501`. Containers run non-root; the data volume survives ordinary stop/down. Backend and UI use separate dependency environments.
+
+Read [security boundaries](SECURITY.md), [operations and retention](docs/operations.md), [observability](docs/observability.md), [environment variables](ENVIRONMENT.md) and the [Architecture & Vision Book v0.5.0](docs/Architecture_Vision_Book_v0.5.0.md). Automatic closed-session cleanup is disabled by default; its eligibility policy is 30 days. Active sessions are never automatically deleted by this release.
+
+## Previous product milestone — v0.4.4
 
 Waaxalma v0.4.4 adds **Conferencing Audio & Device Control** on top of the
 Universal Audio Output bridge introduced in v0.4.3.
@@ -716,70 +724,25 @@ Provider response latency can vary between requests.
 
 ## 🚀 Running the Project
 
-### Backend
-
-From the repository root:
+Use Python 3.12 and separate environments. From `backend/`:
 
 ```powershell
-.\backend\.venv\Scripts\Activate.ps1
-
-python -m uvicorn app.main:app `
-  --reload `
-  --app-dir backend
-```
-
-Or from the `backend` directory:
-
-```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --require-hashes -r requirements-dev.lock
 python -m uvicorn app.main:app --reload
 ```
 
-The API is available at:
-
-```text
-http://127.0.0.1:8000
-```
-
-API documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-Prometheus metrics:
-
-```text
-http://127.0.0.1:8000/metrics
-```
-
-### Streamlit client
-
-From the repository root:
+Development reads a local `.env`; production uses explicit environment injection. Use the installed `waaxalma-backend` command in the packaged runtime. From `streamlit/`, in a separate terminal/environment:
 
 ```powershell
-.\backend\.venv\Scripts\Activate.ps1
-python -m streamlit run streamlit/streamlit_app.py
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --require-hashes -r requirements.lock
+python -m streamlit run streamlit_app.py
 ```
 
-The Streamlit interface exposes one global browser-side **Audio Output** selector used by Standard, Direct, and Enhanced playback.
-
-The realtime interface lets the user choose:
-
-```text
-Direct
-Enhanced
-```
-
-Enhanced additionally exposes:
-
-```text
-Source language
-Target language
-Terminology
-Source transcript
-Translation
-Realtime latency measurements
-```
+Alternatively run Compose from the repository root. Configure OPENAI_API_KEY there and use the configurable CLIENT_ID. See [operations](docs/operations.md) for startup, backup, restart and shutdown details.
 
 ---
 
@@ -828,16 +791,7 @@ From the `backend` directory:
 python -m pytest -q
 ```
 
-Last full backend regression baseline (v0.4.2):
-
-```text
-216 passed
-0 failed
-```
-
-A known non-blocking Starlette `TestClient` / `httpx` deprecation warning remains outside the v0.4.x scope.
-
-v0.4.4 is primarily a browser/Streamlit conferencing-device-control release. The full backend regression suite was rerun before freeze: **216 passed, 1 known non-blocking warning, 0 failed**.
+The v0.5.0 CI runs the complete regression suite on Linux and Windows, with optional SDK tests in a separate gate. See [release validation](docs/slice6-validation.md) for the delivered candidate results and remaining acceptance checks. A non-blocking Starlette/AnyIO deprecation warning remains.
 
 Focused test examples:
 
@@ -851,7 +805,7 @@ python -m pytest tests/services/test_realtime_enhanced_processor_context.py -q
 
 ---
 
-## 🚀 Current Status
+## Product and UI history
 
 ### v0.4.3 — Universal Audio Output & Conferencing Bridge
 
@@ -893,7 +847,7 @@ It includes:
 - Architecture Decision Records;
 - agent, pipeline, provider, and realtime design documentation.
 
-The v0.4.4 Architecture & Vision Book documents the standard framework, Realtime Direct, Realtime Enhanced, universal audio output, explicit input-device control, independent local monitoring, and the experimental inbound/full-duplex extensions.
+The [v0.5.0 Architecture & Vision Book](docs/Architecture_Vision_Book_v0.5.0.md) consolidates readiness, security, persistence and operations alongside the standard framework, Realtime Direct, Realtime Enhanced, universal audio output, explicit input-device control, independent local monitoring, and the experimental inbound/full-duplex extensions.
 
 ---
 
@@ -908,8 +862,8 @@ The v0.4.4 Architecture & Vision Book documents the standard framework, Realtime
 | **v0.4.1** | Realtime Translation & Voice Configuration | Realtime Direct, WebRTC, voice configuration, realtime observability | Released |
 | **v0.4.2** | Realtime Enhanced Streaming | Streaming STT → context / terminology → translation → streaming TTS | Released |
 | **v0.4.3** | Universal Audio Output & Conferencing Bridge | Shared output selection across Standard / Direct / Enhanced; virtual-cable conferencing bridge | Released |
-| **v0.4.4** | Conferencing Audio & Device Control | Explicit microphone selection, independent local monitoring, conferencing device workspace; inbound/full-duplex capabilities experimental | Current release |
-| **v0.5.0** | Product Readiness | Persistent sessions, security, packaging, CI/CD, production observability | Planned |
+| **v0.4.4** | Conferencing Audio & Device Control | Explicit microphone selection, independent local monitoring, conferencing device workspace; inbound/full-duplex capabilities experimental | Released baseline |
+| **v0.5.0** | Product Readiness | Persistent sessions, security, packaging, CI/CD, production observability | Release candidate; final tag after gates |
 | **v1.0.0** | Stable Framework | Production-ready open-source voice agent framework | Target |
 
 ---

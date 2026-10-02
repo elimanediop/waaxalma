@@ -1,3 +1,4 @@
+from app.observability.operations import observe, record_usage
 import httpx
 
 from app.core.streaming_transcription_session import (
@@ -59,6 +60,7 @@ class OpenAIStreamingTranscriptionProvider:
         return self._model
 
 
+    @observe("stt_session", model=None)
     async def create_session(
         self,
         *,

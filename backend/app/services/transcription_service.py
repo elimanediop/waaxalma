@@ -1,3 +1,5 @@
+from app.observability.operations import observe, record_usage
+from app.core.config import OPENAI_API_KEY
 import logging
 from pathlib import Path
 from typing import Any
@@ -39,11 +41,13 @@ PROVIDER_NAME = "openai"
 # Waaxalma controls retries through ResilienceExecutor.
 # Disable the OpenAI SDK retries to avoid nested retry policies.
 client = AsyncOpenAI(
+    api_key=OPENAI_API_KEY,
     max_retries=0,
     timeout=STT_RESILIENCE_POLICY.timeout_seconds,
 )
 
 
+@observe("stt", model=OPENAI_TRANSCRIPTION_MODEL)
 async def transcribe_audio(
     file_path: str,
 ) -> str:

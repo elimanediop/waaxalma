@@ -13,7 +13,7 @@ import streamlit as st
 
 
 
-from config import API_URL
+from config import API_URL, PUBLIC_API_URL, CLIENT_ID, REQUEST_TIMEOUT_SECONDS
 
 
 
@@ -40,6 +40,7 @@ st.set_page_config(
 
 
 NORMALIZED_API_URL = API_URL.rstrip("/")
+PUBLIC_NORMALIZED_API_URL = PUBLIC_API_URL.rstrip("/")
 
 
 
@@ -61,7 +62,7 @@ TARGET_LANGUAGES = [
 
 
 
-REQUEST_TIMEOUT_SECONDS = 120
+
 
 
 
@@ -327,7 +328,7 @@ def build_audio_url(
 
     return (
 
-        f"{NORMALIZED_API_URL}/"
+        f"{PUBLIC_NORMALIZED_API_URL}/"
 
         f"{audio_url.lstrip('/')}"
 
@@ -380,6 +381,8 @@ def call_voice_interpretation(
             "/api/voice/interpret"
 
         ),
+
+        headers={"X-Client-Id": CLIENT_ID},
 
         files=files,
 
@@ -697,9 +700,10 @@ def load_conference_translation_client() -> str:
         encoding="utf-8"
     )
 
+    html = html.replace("__WAAXALMA_CLIENT_ID__", CLIENT_ID)
     html = html.replace(
         "__WAAXALMA_API_URL__",
-        NORMALIZED_API_URL,
+        PUBLIC_NORMALIZED_API_URL,
     )
 
     manager_script = (
@@ -857,9 +861,10 @@ def load_realtime_client(
         encoding="utf-8"
     )
 
+    html = html.replace("__WAAXALMA_CLIENT_ID__", CLIENT_ID)
     html = html.replace(
         "__WAAXALMA_API_URL__",
-        NORMALIZED_API_URL,
+        PUBLIC_NORMALIZED_API_URL,
     )
 
     audio_input_manager_js = (

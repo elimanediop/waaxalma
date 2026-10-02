@@ -49,3 +49,9 @@ api/poetry.lock
 # Generated audio files
 backend/static/audio/*
 !backend/static/audio/.gitkeep
+# Persistent local session storage
+backend/data/
+data/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal

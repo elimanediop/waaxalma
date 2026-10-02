@@ -5,6 +5,7 @@ class ErrorCode(str, Enum):
     # Request and session errors
     INVALID_INPUT = "INVALID_INPUT"
     SESSION_NOT_FOUND = "SESSION_NOT_FOUND"
+    SESSION_CLOSED = "SESSION_CLOSED"
 
     # Audio validation errors
     INVALID_AUDIO = "INVALID_AUDIO"

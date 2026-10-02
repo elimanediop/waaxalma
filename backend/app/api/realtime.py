@@ -1,3 +1,7 @@
+from fastapi import HTTPException
+from fastapi import Depends
+from app.security.backend import resolve_security_context, check_existing_session
+from app.security.security_context import SecurityContext
 import base64
 from typing import Any
 
@@ -18,8 +22,7 @@ from pydantic import (
 # Router
 #
 # Important:
-# No app.* module is imported at module load time.
-# This prevents app.main <-> app.api.realtime circular imports.
+# Provider/service composition is resolved lazily to avoid circular imports.
 # ------------------------------------------------------------------
 
 router = APIRouter(
@@ -286,7 +289,10 @@ CLIENT_METRIC_NAMES = {
 )
 async def create_translation_session(
     request: RealtimeTranslationSessionRequest,
+    security: SecurityContext = Depends(resolve_security_context),
 ) -> RealtimeTranslationSessionResponse:
+    from app.observability.context import enrich
+    enrich(target_language=request.target_language)
     service = (
         _get_realtime_translation_service()
     )
@@ -325,7 +331,10 @@ async def create_translation_session(
 )
 async def create_realtime_enhanced_session(
     request: RealtimeEnhancedSessionRequest,
+    security: SecurityContext = Depends(resolve_security_context),
 ) -> RealtimeEnhancedSession:
+    from app.observability.context import enrich
+    enrich(target_language=request.target_language)
     service = (
         _get_realtime_enhanced_service()
     )
@@ -452,6 +461,16 @@ async def realtime_enhanced_stream(
         RealtimeEnhancedProcessor,
     )
 
+    try:
+        header_id = websocket.headers.get("x-client-id")
+        query_id = websocket.query_params.get("client_id")
+        if header_id is not None and query_id is not None and header_id != query_id:
+            raise HTTPException(401, detail={"code": "INVALID_CLIENT_ID"})
+        # Browser WebSocket constructors cannot set custom HTTP headers.
+        security = resolve_security_context(header_id if header_id is not None else query_id)
+    except HTTPException:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
 
     async def send_json_safely(
@@ -507,6 +526,15 @@ async def realtime_enhanced_stream(
                     )
                 )
 
+                from app.bootstrap.container import session_manager
+                if event.session_id:
+                    try:
+                        check_existing_session(session_manager, event.session_id, security)
+                    except HTTPException as exc:
+                        await websocket.send_json({"type": "error", **exc.detail})
+                        await websocket.close(code=1008)
+                        return
+
                 runtime = (
                     RealtimeEnhancedRuntime(
                         target_language=(
@@ -530,6 +558,9 @@ async def realtime_enhanced_stream(
                         service=service,
                     )
                 )
+
+                from app.observability.context import enrich
+                enrich(session_id=processor.session_id, target_language=processor.target_language)
 
                 requested_voice = ""
 

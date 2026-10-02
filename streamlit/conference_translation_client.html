@@ -344,6 +344,8 @@
     // Configuration
     // ------------------------------------------------------------
 
+    const WAAXALMA_CLIENT_ID = "__WAAXALMA_CLIENT_ID__";
+
     const WAAXALMA_API_URL =
         "__WAAXALMA_API_URL__";
 
@@ -795,6 +797,8 @@
             + "//"
             + url.host
             + "/api/realtime/enhanced/stream"
+            + "?client_id="
+            + encodeURIComponent(WAAXALMA_CLIENT_ID)
         );
     }
 
@@ -876,6 +880,7 @@
                         "POST",
 
                     headers: {
+                        "X-Client-Id": WAAXALMA_CLIENT_ID,
                         "Content-Type":
                             "application/json",
                     },

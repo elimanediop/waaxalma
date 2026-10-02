@@ -1,3 +1,7 @@
+from fastapi import Depends
+from app.security.backend import resolve_security_context, check_existing_session
+from app.security.security_context import SecurityContext
+from app.bootstrap.container import session_manager
 import uuid
 
 from app.core.agent_execution_factory import AgentExecutionFactory
@@ -48,7 +52,10 @@ agent_orchestrator = AgentOrchestrator(
 )
 async def translate_text(
     request: TranslateTextRequest,
+    security: SecurityContext = Depends(resolve_security_context),
 ) -> TranslateTextResponse:
+    if request.session_id:
+        check_existing_session(session_manager, request.session_id, security)
     execution = AgentExecutionFactory.create(
         operation="translate",
         payload={
@@ -78,7 +85,10 @@ async def translate_text(
 )
 async def speak_text(
     request: SpeakTextRequest,
+    security: SecurityContext = Depends(resolve_security_context),
 ) -> SpeakTextResponse:
+    if request.session_id:
+        check_existing_session(session_manager, request.session_id, security)
     execution = AgentExecutionFactory.create(
         operation="speak",
         payload={
@@ -106,7 +116,10 @@ async def speak_text(
 )
 async def translate_and_speak(
     request: TranslateAndSpeakRequest,
+    security: SecurityContext = Depends(resolve_security_context),
 ) -> TranslateAndSpeakResponse:
+    if request.session_id:
+        check_existing_session(session_manager, request.session_id, security)
     execution = AgentExecutionFactory.create(
         operation="translate_and_speak",
         payload={
