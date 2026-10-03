@@ -1,6 +1,6 @@
 import ast,pathlib,re,subprocess,tempfile,runpy,os
 root=pathlib.Path(__file__).resolve().parents[1] / 'streamlit'
-source=(root/'streamlit_app.py').read_text().read_text(encoding='utf-8')
+source=(root/'streamlit_app.py').read_text(encoding='utf-8')
 tree=ast.parse(source)
 ns={'Path':pathlib.Path,'NORMALIZED_API_URL':'http://backend:8000','PUBLIC_NORMALIZED_API_URL':'http://localhost:8000','CLIENT_ID':'waaxalma-for-elimane'}
 for name,file in [('AUDIO_INPUT_MANAGER_FILE','audio_input_manager.js'),('AUDIO_OUTPUT_MANAGER_FILE','audio_output_manager.js'),('CONFERENCE_INPUT_MANAGER_FILE','conference_input_manager.js'),('CONFERENCE_TRANSLATION_CLIENT_FILE','conference_translation_client.html')]:ns[name]=root/file
