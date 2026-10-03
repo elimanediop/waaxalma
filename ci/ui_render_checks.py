@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as out:
   assert 'http://localhost:8000' in html and 'waaxalma-for-elimane' in html
   for i,script in enumerate(re.findall(r'<script\b[^>]*>(.*?)</script>',html,re.S|re.I)):
    if not script.strip():continue
-   path=pathlib.Path(out)/f'{name}.{i}.js';path.write_text(script)
+   path=pathlib.Path(out)/f'{name}.{i}.js';path.write_text(script, encoding='utf-8')
    subprocess.run(['node','--check',str(path)],check=True,capture_output=True)
    count+=1
  print(f'UI URL separation, identity injection, generated JavaScript ({count} scripts): OK')
