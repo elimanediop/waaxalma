@@ -8,7 +8,8 @@ RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock \
     && groupadd --gid 10001 waaxalma \
     && useradd --uid 10001 --gid 10001 --no-create-home waaxalma
 COPY config.py streamlit_app.py ./
-COPY *.html *.js ./
+COPY ui/ ./ui/
+COPY assets/ ./assets/
 USER 10001:10001
 EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \

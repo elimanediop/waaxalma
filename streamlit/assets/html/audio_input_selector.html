@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Waaxalma Audio Input</title>
+
+    __ASSET_CSS_audio_input_selector.1.css__
+
+    __AUDIO_INPUT_MANAGER_SCRIPT__
+</head>
+
+<body>
+<div class="container">
+
+    <div class="title">
+        🎤 Realtime Audio Input
+    </div>
+
+    <div class="controls">
+
+        <div class="field">
+            <label for="inputDevice">
+                Input device
+            </label>
+
+            <select id="inputDevice">
+                <option value="">
+                    Default microphone
+                </option>
+            </select>
+        </div>
+
+        <button id="refreshButton">
+            Refresh
+        </button>
+
+        <button id="permissionButton">
+            Allow microphone access
+        </button>
+
+    </div>
+
+    <div
+        id="status"
+        class="status"
+    >
+        Discovering microphones...
+    </div>
+
+    <div
+        id="capabilities"
+        class="capabilities"
+    ></div>
+
+</div>
+
+__ASSET_JS_audio_input_selector.1.js__
+</body>
+</html>

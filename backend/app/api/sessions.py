@@ -1,3 +1,4 @@
+from app.api.contracts import ERROR_RESPONSES
 from fastapi import Depends
 from app.security.backend import resolve_security_context, require_session_access
 from app.security.security_context import SecurityContext
@@ -24,7 +25,7 @@ from app.sessions.session_service import (
     SessionNotFoundError,
 )
 
-router = APIRouter(
+router = APIRouter(responses=ERROR_RESPONSES, 
     prefix="/api/sessions",
     tags=["sessions"],
 )

@@ -8,13 +8,31 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from app.core.settings import get_settings
 from app.version import __version__
+from typing import Literal
+from pydantic import BaseModel
+
+
+class LiveHealthResponse(BaseModel):
+    status: Literal["ok"]
+    service: str
+    version: str
+
+
+class ReadyHealthResponse(BaseModel):
+    status: Literal["ready"]
+    service: str
+    version: str
+
+
+class NotReadyHealthResponse(BaseModel):
+    status: Literal["not_ready"]
 
 router = APIRouter(tags=["health"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/health")
-@router.get("/health/live")
+@router.get("/health", response_model=LiveHealthResponse)
+@router.get("/health/live", response_model=LiveHealthResponse)
 def live():
     return {"status": "ok", "service": "waaxalma", "version": __version__}
 
@@ -44,7 +62,8 @@ def check_local_resources() -> None:
         session_manager.get_session("readiness-probe")
 
 
-@router.get("/health/ready")
+@router.get("/health/ready", response_model=ReadyHealthResponse,
+            responses={503: {"model": NotReadyHealthResponse}})
 def ready(request: Request):
     if not getattr(request.app.state, "startup_complete", False):
         return JSONResponse(status_code=503, content={"status": "not_ready"})

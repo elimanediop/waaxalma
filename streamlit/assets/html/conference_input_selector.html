@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Waaxalma Conference Input</title>
+
+    __ASSET_CSS_conference_input_selector.1.css__
+
+    __CONFERENCE_INPUT_MANAGER_SCRIPT__
+</head>
+<body>
+<div class="container">
+    <div class="title">🎙️ Conference Input — Device & Signal Check</div>
+
+    <div class="controls">
+        <div class="field">
+            <label for="conferenceInputDevice">Conference input device</label>
+            <select id="conferenceInputDevice">
+                <option value="">Default audio input</option>
+            </select>
+        </div>
+
+        <button id="refreshButton">Refresh</button>
+        <button id="permissionButton">Allow audio access</button>
+        <button id="captureButton">Start capture</button>
+    </div>
+
+    <div class="meter-row">
+        <div class="meter-label">Incoming audio</div>
+        <div class="meter"><div id="meterFill" class="meter-fill"></div></div>
+        <div id="dbfs" class="dbfs">-120 dBFS</div>
+    </div>
+
+    <div id="status" class="status">Discovering conference inputs...</div>
+    <div id="capabilities" class="capabilities"></div>
+</div>
+
+__ASSET_JS_conference_input_selector.1.js__
+</body>
+</html>

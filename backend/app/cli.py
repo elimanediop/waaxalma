@@ -1,5 +1,7 @@
 """Installed console entry point: waaxalma-backend."""
 def main() -> None:
+    from app.core.runtime_support import require_supported_python
+    require_supported_python()
     import uvicorn
     from app.core.settings import get_settings
     settings = get_settings()

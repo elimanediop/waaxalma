@@ -1,3 +1,4 @@
+from app.api.contracts import ERROR_RESPONSES
 from fastapi import Depends
 from app.security.backend import resolve_security_context, check_existing_session
 from app.security.security_context import SecurityContext
@@ -23,7 +24,7 @@ from app.models.response_models import (
 from app.skills import speech_skill, translation_skill
 from app.orchestration.result_handler import require_agent_output
 
-router = APIRouter(prefix="/api/text", tags=["text"])
+router = APIRouter(responses=ERROR_RESPONSES, prefix="/api/text", tags=["text"])
 
 # Existing instance kept temporarily for the routes not yet migrated.
 TranslationAgent(

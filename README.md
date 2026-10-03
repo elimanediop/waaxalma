@@ -8,13 +8,15 @@ Its mission is to help people communicate across languages by combining speech r
 
 ---
 
-## Product Readiness — v0.5.0 release candidate
+## Stable Framework Release — v1.0.0
 
-The six readiness slices add persistent SQLite sessions with immutable client owners, strict X-Client-Id boundaries, typed configuration, wheel/container packaging, Windows/Linux quality gates, business observability, retention and release governance. X-Client-Id remains self-declared identity, not authentication. The final tag follows the [release checklist](docs/release-v0.5.0.md).
+The six readiness slices add persistent SQLite sessions with immutable client owners, strict X-Client-Id boundaries, typed configuration, wheel/container packaging, Windows/Linux quality gates, business observability, retention and release governance. X-Client-Id remains self-declared identity, not authentication. The v1.0.0 framework adds stable public imports, extension conformance, reviewed HTTP/WebSocket contracts and runtime/upgrade guarantees. The final tag follows the [release checklist](docs/release-v1.0.0.md).
 
 Start the portable backend/UI stack with `docker compose up --build -d` after configuring your root `.env`. Health: `/health/live` and `/health/ready`; metrics: `/metrics`; UI: `http://localhost:8501`. Containers run non-root; the data volume survives ordinary stop/down. Backend and UI use separate dependency environments.
 
-Read [security boundaries](SECURITY.md), [operations and retention](docs/operations.md), [observability](docs/observability.md), [environment variables](ENVIRONMENT.md) and the [Architecture & Vision Book v0.5.0](docs/Architecture_Vision_Book_v0.5.0.md). Automatic closed-session cleanup is disabled by default; its eligibility policy is 30 days. Active sessions are never automatically deleted by this release.
+Read [security boundaries](SECURITY.md), [operations and retention](docs/operations.md), [observability](docs/observability.md), [environment variables](ENVIRONMENT.md) and the [Architecture & Vision Book v1.0.0](docs/Architecture_Vision_Book_v1.0.0.md). Automatic closed-session cleanup is disabled by default; its eligibility policy is 30 days. Active sessions are never automatically deleted by this release.
+
+Stable extension authors use `app.framework` and optional `app.framework.testing`. Read the [public contracts](docs/framework-contracts.md), [conformance guide](docs/extension-conformance.md), [API contracts](docs/api-streaming-stability.md), [supported runtime](docs/supported-runtime.md) and [upgrade guide](docs/upgrade-v0.5-to-v1.md). The English Word book is in `docs/book/Waaxalma_Architecture_Vision_Book_v1.0.0_EN.docx`.
 
 ## Previous product milestone — v0.4.4
 

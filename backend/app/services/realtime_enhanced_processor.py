@@ -1,3 +1,4 @@
+from app.core.stream_lifecycle import closing_stream
 import asyncio
 import logging
 import time
@@ -208,34 +209,24 @@ class RealtimeEnhancedProcessor:
             segment.text
         )
 
-        async for chunk in (
-            self._service.translate_stream(
-                text=segment.text,
-                target_language=(
-                    self._runtime.target_language
-                ),
-                context=translation_context,
-                terminology=(
-                    self._runtime.terminology
-                ),
-            )
-        ):
-            metadata = {
-                **chunk.metadata,
-                "session_id":
-                    self._runtime.session_id,
-                "segment_sequence":
-                    segment.sequence,
-                "target_language":
-                    self._runtime.target_language,
-            }
-
-            yield chunk.model_copy(
-                update={
-                    "metadata":
-                        metadata,
+        async with closing_stream(self._service.translate_stream(text=segment.text, target_language=self._runtime.target_language, context=translation_context, terminology=self._runtime.terminology)) as provider_stream:
+            async for chunk in provider_stream:
+                metadata = {
+                    **chunk.metadata,
+                    "session_id":
+                        self._runtime.session_id,
+                    "segment_sequence":
+                        segment.sequence,
+                    "target_language":
+                        self._runtime.target_language,
                 }
-            )
+
+                yield chunk.model_copy(
+                    update={
+                        "metadata":
+                            metadata,
+                    }
+                )
 
     async def commit_translate_and_speak(
         self,
@@ -284,11 +275,11 @@ class RealtimeEnhancedProcessor:
         ) = None
 
         output_queue: asyncio.Queue = (
-            asyncio.Queue()
+            asyncio.Queue(maxsize=64)
         )
 
         speech_queue: asyncio.Queue = (
-            asyncio.Queue()
+            asyncio.Queue(maxsize=32)
         )
 
         speech_done = object()
@@ -325,114 +316,99 @@ class RealtimeEnhancedProcessor:
             )
 
             try:
-                async for chunk in (
-                    self._service.translate_stream(
-                        text=(
-                            source_segment.text
-                        ),
-                        target_language=(
-                            self._runtime
-                            .target_language
-                        ),
-                        context=(
-                            translation_context
-                        ),
-                        terminology=(
-                            self._runtime.terminology
-                        ),
-                    )
-                ):
-                    translation_chunk = (
-                        chunk.model_copy(
-                            update={
-                                "metadata": {
-                                    **chunk.metadata,
-                                    **base_metadata,
+                async with closing_stream(self._service.translate_stream(text=source_segment.text, target_language=self._runtime.target_language, context=translation_context, terminology=self._runtime.terminology)) as provider_stream:
+                    async for chunk in provider_stream:
+                        translation_chunk = (
+                            chunk.model_copy(
+                                update={
+                                    "metadata": {
+                                        **chunk.metadata,
+                                        **base_metadata,
+                                    }
                                 }
-                            }
-                        )
-                    )
-
-                    if (
-                        translation_chunk.text
-                        and
-                        first_translation_at is None
-                    ):
-                        first_translation_at = (
-                            time.perf_counter()
+                            )
                         )
 
-                        logger.info(
-                            "[EnhancedLatency] "
-                            "commit_to_first_translation_ms=%.1f "
-                            "translation_request_to_first_delta_ms=%.1f "
-                            "segment=%s",
-                            (
-                                first_translation_at
-                                - commit_started_at
-                            ) * 1000,
-                            (
-                                first_translation_at
-                                - translation_request_started_at
-                            ) * 1000,
-                            source_segment.sequence,
-                        )
+                        if (
+                            translation_chunk.text
+                            and
+                            first_translation_at is None
+                        ):
+                            first_translation_at = (
+                                time.perf_counter()
+                            )
 
-                    await output_queue.put(
-                        RealtimeEnhancedTranslationOutput(
-                            chunk=(
-                                translation_chunk
-                            ),
-                        )
-                    )
+                            logger.info(
+                                "[EnhancedLatency] "
+                                "commit_to_first_translation_ms=%.1f "
+                                "translation_request_to_first_delta_ms=%.1f "
+                                "segment=%s",
+                                (
+                                    first_translation_at
+                                    - commit_started_at
+                                ) * 1000,
+                                (
+                                    first_translation_at
+                                    - translation_request_started_at
+                                ) * 1000,
+                                source_segment.sequence,
+                            )
 
-                    if translation_chunk.text:
-                        speakable_segments = (
-                            self
-                            ._speakable_text_buffer
-                            .append(
-                                translation_chunk.text,
-                                metadata=(
-                                    base_metadata
+                        await output_queue.put(
+                            RealtimeEnhancedTranslationOutput(
+                                chunk=(
+                                    translation_chunk
                                 ),
                             )
                         )
 
-                        for speakable_segment in (
-                            speakable_segments
-                        ):
-                            if (
-                                first_speakable_at
-                                is None
-                            ):
-                                first_speakable_at = (
-                                    time.perf_counter()
+                        if translation_chunk.text:
+                            speakable_segments = (
+                                self
+                                ._speakable_text_buffer
+                                .append(
+                                    translation_chunk.text,
+                                    metadata=(
+                                        base_metadata
+                                    ),
                                 )
-
-                                logger.debug(
-                                    "[EnhancedLatency] "
-                                    "commit_to_first_speakable_ms=%.1f "
-                                    "translation_to_speakable_ms=%.1f "
-                                    "segment=%s",
-                                    (
-                                        first_speakable_at
-                                        - commit_started_at
-                                    ) * 1000,
-                                    (
-                                        first_speakable_at
-                                        - (
-                                            first_translation_at
-                                            or first_speakable_at
-                                        )
-                                    ) * 1000,
-                                    source_segment.sequence,
-                                )
-
-                            logger.debug("[Enhanced] speech segment prepared")
-
-                            await speech_queue.put(
-                                speakable_segment
                             )
+
+                            for speakable_segment in (
+                                speakable_segments
+                            ):
+                                if (
+                                    first_speakable_at
+                                    is None
+                                ):
+                                    first_speakable_at = (
+                                        time.perf_counter()
+                                    )
+
+                                    logger.debug(
+                                        "[EnhancedLatency] "
+                                        "commit_to_first_speakable_ms=%.1f "
+                                        "translation_to_speakable_ms=%.1f "
+                                        "segment=%s",
+                                        (
+                                            first_speakable_at
+                                            - commit_started_at
+                                        ) * 1000,
+                                        (
+                                            first_speakable_at
+                                            - (
+                                                first_translation_at
+                                                or first_speakable_at
+                                            )
+                                        ) * 1000,
+                                        source_segment.sequence,
+                                    )
+
+                                logger.debug("[Enhanced] speech segment prepared")
+
+                                await speech_queue.put(
+                                    speakable_segment
+                                )
 
             except Exception as exc:
                 logger.error(
@@ -489,9 +465,8 @@ class RealtimeEnhancedProcessor:
                     )
 
             finally:
-                await speech_queue.put(
-                    speech_done
-                )
+                if not asyncio.current_task().cancelling():
+                    await speech_queue.put(speech_done)
 
         async def produce_speech() -> None:
             nonlocal tts_started_at
@@ -537,88 +512,77 @@ class RealtimeEnhancedProcessor:
 
                     logger.debug("[Enhanced] speech segment prepared")
 
-                    async for chunk in (
-                        self._service.speak_stream(
-                            text=(
-                                speakable_segment.text
-                            ),
-                            voice_id=(
-                                voice_id
-                            ),
-                            instructions=(
-                                speech_instructions
-                            ),
-                        )
-                    ):
-                        if (
-                            chunk.audio
-                            and first_audio_at is None
-                        ):
-                            first_audio_at = (
-                                time.perf_counter()
+                    async with closing_stream(self._service.speak_stream(text=speakable_segment.text, voice_id=voice_id, instructions=speech_instructions)) as provider_stream:
+                        async for chunk in provider_stream:
+                            if (
+                                chunk.audio
+                                and first_audio_at is None
+                            ):
+                                first_audio_at = (
+                                    time.perf_counter()
+                                )
+
+                                logger.info(
+                                    "[EnhancedLatency] "
+                                    "commit_to_first_audio_ms=%.1f "
+                                    "tts_to_first_audio_ms=%.1f "
+                                    "translation_to_first_audio_ms=%.1f "
+                                    "segment=%s",
+                                    (
+                                        first_audio_at
+                                        - commit_started_at
+                                    ) * 1000,
+                                    (
+                                        first_audio_at
+                                        - (
+                                            tts_started_at
+                                            or first_audio_at
+                                        )
+                                    ) * 1000,
+                                    (
+                                        first_audio_at
+                                        - (
+                                            first_translation_at
+                                            or first_audio_at
+                                        )
+                                    ) * 1000,
+                                    source_segment.sequence,
+                                )
+
+                            logger.debug(
+                                "[Enhanced] TTS chunk "
+                                "bytes=%s final=%s "
+                                "content_type=%s sample_rate=%s",
+                                len(chunk.audio),
+                                chunk.is_final,
+                                chunk.content_type,
+                                chunk.sample_rate,
                             )
 
-                            logger.info(
-                                "[EnhancedLatency] "
-                                "commit_to_first_audio_ms=%.1f "
-                                "tts_to_first_audio_ms=%.1f "
-                                "translation_to_first_audio_ms=%.1f "
-                                "segment=%s",
-                                (
-                                    first_audio_at
-                                    - commit_started_at
-                                ) * 1000,
-                                (
-                                    first_audio_at
-                                    - (
-                                        tts_started_at
-                                        or first_audio_at
-                                    )
-                                ) * 1000,
-                                (
-                                    first_audio_at
-                                    - (
-                                        first_translation_at
-                                        or first_audio_at
-                                    )
-                                ) * 1000,
-                                source_segment.sequence,
-                            )
-
-                        logger.debug(
-                            "[Enhanced] TTS chunk "
-                            "bytes=%s final=%s "
-                            "content_type=%s sample_rate=%s",
-                            len(chunk.audio),
-                            chunk.is_final,
-                            chunk.content_type,
-                            chunk.sample_rate,
-                        )
-
-                        speech_chunk = (
-                            chunk.model_copy(
-                                update={
-                                    "metadata": {
-                                        **chunk.metadata,
-                                        **base_metadata,
-                                        (
-                                            "speech_segment_"
-                                            "sequence"
-                                        ):
-                                            speakable_segment
-                                            .sequence,
+                            speech_chunk = (
+                                chunk.model_copy(
+                                    update={
+                                        "metadata": {
+                                            **chunk.metadata,
+                                            **base_metadata,
+                                            (
+                                                "speech_segment_"
+                                                "sequence"
+                                            ):
+                                                speakable_segment
+                                                .sequence,
+                                        }
                                     }
-                                }
+                                )
                             )
-                        )
 
-                        await output_queue.put(
-                            RealtimeEnhancedSpeechOutput(
-                                chunk=(
-                                    speech_chunk
-                                ),
+                            await output_queue.put(
+                                RealtimeEnhancedSpeechOutput(
+                                    chunk=(
+                                        speech_chunk
+                                    ),
+                                )
                             )
-                        )
 
             except Exception as exc:
                 logger.error(
@@ -630,9 +594,8 @@ class RealtimeEnhancedProcessor:
                 )
 
             finally:
-                await output_queue.put(
-                    output_done
-                )
+                if not asyncio.current_task().cancelling():
+                    await output_queue.put(output_done)
 
         translation_task = (
             asyncio.create_task(

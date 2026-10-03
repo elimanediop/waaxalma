@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Waaxalma Full Duplex Session</title>
+
+    __ASSET_CSS_full_duplex_controller.1.css__
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="row">
+
+        <div class="card">
+            <div class="label">
+                Outbound mode
+            </div>
+
+            <div class="value">
+                __OUTBOUND_MODE_LABEL__
+            </div>
+        </div>
+
+
+        <div class="card">
+            <div class="label">
+                Outbound
+            </div>
+
+            <div class="value">
+                <span
+                    id="outboundDot"
+                    class="dot stopped"
+                ></span>
+
+                <span id="outboundStatus">
+                    Stopped
+                </span>
+            </div>
+        </div>
+
+
+        <div class="card">
+            <div class="label">
+                Inbound
+            </div>
+
+            <div class="value">
+                <span
+                    id="inboundDot"
+                    class="dot stopped"
+                ></span>
+
+                <span id="inboundStatus">
+                    Stopped
+                </span>
+            </div>
+        </div>
+
+
+        <button id="startButton">
+            Start Full Duplex
+        </button>
+
+
+        <button
+            id="stopButton"
+            disabled
+        >
+            Stop All
+        </button>
+
+    </div>
+
+
+    <div
+        id="summary"
+        class="summary"
+    >
+        Ready. Stop any Conference Input diagnostic capture before starting.
+    </div>
+
+</div>
+
+
+__ASSET_JS_full_duplex_controller.1.js__
+
+</body>
+</html>

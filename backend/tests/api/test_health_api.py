@@ -10,7 +10,7 @@ from app.sessions.sqlite_session_repository import SQLiteSessionRepository
 def test_health_without_client_identity():
     with TestClient(app) as client:
         assert client.get('/health').status_code==200
-        assert client.get('/health/live').json()['version']=='0.5.0'
+        assert client.get('/health/live').json()['version']=='1.0.0'
         assert client.get('/health/ready').status_code==200
     assert app.state.startup_complete is False
 

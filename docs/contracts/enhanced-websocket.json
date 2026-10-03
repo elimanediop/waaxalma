@@ -1,0 +1,333 @@
+{
+  "incoming": {
+    "$defs": {
+      "RealtimeEnhancedResetEvent": {
+        "properties": {
+          "type": {
+            "const": "session.reset",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "RealtimeEnhancedResetEvent",
+        "type": "object"
+      },
+      "RealtimeEnhancedStartEvent": {
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Session Id"
+          },
+          "speech_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Speech Instructions"
+          },
+          "target_language": {
+            "minLength": 1,
+            "title": "Target Language",
+            "type": "string"
+          },
+          "terminology": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Terminology"
+          },
+          "type": {
+            "const": "session.start",
+            "title": "Type",
+            "type": "string"
+          },
+          "voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Voice Id"
+          }
+        },
+        "required": [
+          "type",
+          "target_language"
+        ],
+        "title": "RealtimeEnhancedStartEvent",
+        "type": "object"
+      },
+      "RealtimeEnhancedTranscriptCommitEvent": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
+          },
+          "type": {
+            "const": "transcript.commit",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "RealtimeEnhancedTranscriptCommitEvent",
+        "type": "object"
+      },
+      "RealtimeEnhancedTranscriptDeltaEvent": {
+        "properties": {
+          "delta": {
+            "title": "Delta",
+            "type": "string"
+          },
+          "type": {
+            "const": "transcript.delta",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "delta"
+        ],
+        "title": "RealtimeEnhancedTranscriptDeltaEvent",
+        "type": "object"
+      }
+    },
+    "discriminator": {
+      "mapping": {
+        "session.reset": "#/$defs/RealtimeEnhancedResetEvent",
+        "session.start": "#/$defs/RealtimeEnhancedStartEvent",
+        "transcript.commit": "#/$defs/RealtimeEnhancedTranscriptCommitEvent",
+        "transcript.delta": "#/$defs/RealtimeEnhancedTranscriptDeltaEvent"
+      },
+      "propertyName": "type"
+    },
+    "oneOf": [
+      {
+        "$ref": "#/$defs/RealtimeEnhancedStartEvent"
+      },
+      {
+        "$ref": "#/$defs/RealtimeEnhancedResetEvent"
+      },
+      {
+        "$ref": "#/$defs/RealtimeEnhancedTranscriptDeltaEvent"
+      },
+      {
+        "$ref": "#/$defs/RealtimeEnhancedTranscriptCommitEvent"
+      }
+    ]
+  },
+  "outgoing": {
+    "$defs": {
+      "RealtimeEnhancedAudioDeltaEvent": {
+        "properties": {
+          "audio": {
+            "title": "Audio",
+            "type": "string"
+          },
+          "content_type": {
+            "default": "audio/pcm",
+            "title": "Content Type",
+            "type": "string"
+          },
+          "is_final": {
+            "default": false,
+            "title": "Is Final",
+            "type": "boolean"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "sample_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sample Rate"
+          },
+          "type": {
+            "const": "audio.delta",
+            "default": "audio.delta",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audio"
+        ],
+        "title": "RealtimeEnhancedAudioDeltaEvent",
+        "type": "object"
+      },
+      "RealtimeEnhancedErrorEvent": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "const": "error",
+            "default": "error",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "RealtimeEnhancedErrorEvent",
+        "type": "object"
+      },
+      "RealtimeEnhancedSessionReadyEvent": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "target_language": {
+            "title": "Target Language",
+            "type": "string"
+          },
+          "type": {
+            "const": "session.ready",
+            "default": "session.ready",
+            "title": "Type",
+            "type": "string"
+          },
+          "voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Voice Id"
+          }
+        },
+        "required": [
+          "session_id",
+          "target_language"
+        ],
+        "title": "RealtimeEnhancedSessionReadyEvent",
+        "type": "object"
+      },
+      "RealtimeEnhancedTranslationDeltaEvent": {
+        "properties": {
+          "is_final": {
+            "default": false,
+            "title": "Is Final",
+            "type": "boolean"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "translation.delta",
+            "default": "translation.delta",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "RealtimeEnhancedTranslationDeltaEvent",
+        "type": "object"
+      }
+    },
+    "discriminator": {
+      "mapping": {
+        "audio.delta": "#/$defs/RealtimeEnhancedAudioDeltaEvent",
+        "error": "#/$defs/RealtimeEnhancedErrorEvent",
+        "session.ready": "#/$defs/RealtimeEnhancedSessionReadyEvent",
+        "translation.delta": "#/$defs/RealtimeEnhancedTranslationDeltaEvent"
+      },
+      "propertyName": "type"
+    },
+    "oneOf": [
+      {
+        "$ref": "#/$defs/RealtimeEnhancedSessionReadyEvent"
+      },
+      {
+        "$ref": "#/$defs/RealtimeEnhancedTranslationDeltaEvent"
+      },
+      {
+        "$ref": "#/$defs/RealtimeEnhancedAudioDeltaEvent"
+      },
+      {
+        "$ref": "#/$defs/RealtimeEnhancedErrorEvent"
+      }
+    ]
+  }
+}

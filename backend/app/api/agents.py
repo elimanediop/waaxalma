@@ -1,3 +1,5 @@
+from app.api.contracts import AgentListResponse
+from app.api.contracts import ERROR_RESPONSES
 from fastapi import Depends
 from app.security.backend import resolve_security_context, check_existing_session
 from app.security.security_context import SecurityContext
@@ -15,7 +17,7 @@ from app.core.session_context import SessionContext
 from app.orchestration.result_handler import require_agent_output
 
 
-router = APIRouter(
+router = APIRouter(responses=ERROR_RESPONSES, 
     prefix="/api/agents",
     tags=["agents"],
 )
@@ -29,14 +31,14 @@ class AgentExecutionRequest(BaseModel):
     session_id: str
 
 
-@router.get("")
+@router.get("", response_model=AgentListResponse)
 async def list_agents():
     return {
         "agents": agent_registry.names(),
     }
 
 
-@router.post("/{agent_name}/execute")
+@router.post("/{agent_name}/execute", response_model=dict[str, Any])
 async def execute_agent(
     agent_name: str,
     request: AgentExecutionRequest,

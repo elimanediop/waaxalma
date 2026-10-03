@@ -6,6 +6,36 @@ The project follows semantic versioning where practical.
 
 ---
 
+## [v1.0.0] — Stable Framework Release — 2026-10-03
+
+### Added
+
+- **Slice 1 — Public Contracts & Compatibility:** explicit `app.framework`
+  extension facade, existing class identities and imports preserved, public
+  contract inventory and planned stable-release compatibility/deprecation policy.
+- Contract regression tests and installed-wheel facade checks in packaging CI.
+- **Slice 2 — Extension Conformance:** opt-in `app.framework.testing` helpers
+  for agents, stages and standard/live providers; deterministic external extension
+  example, negative/cleanup/cancellation tests and installed-wheel example gate.
+- **Slice 3 — API & Streaming Stability:** reviewed HTTP/WebSocket schema
+  snapshots and CI gate, normalized HTTP error envelopes, recoverable invalid
+  WebSocket events, sanitized processing errors, independent disconnect monitor,
+  deterministic stream/task cleanup and bounded processing queues.
+- **Slice 4 — Supported Runtime & Upgrade Guarantees:** declared CPython 3.12
+  Linux/Windows profile, runtime/CI/package consistency check, future SQLite
+  schema refusal, read-only inspection and WAL-consistent backup command,
+  frozen v0.5.0 storage fixtures and stronger restart/ownership/history checks.
+
+- **Slice 5 — Stable Release Acceptance:** aligned runtime, wheel, images and
+  tag workflow to 1.0.0; health/OpenAPI version smoke gates, tag/version agreement,
+  streamed artifact checksums, checksum verification, final acceptance and tag
+  procedure, and Architecture & Vision Book v1.0.0 in Markdown and Word.
+
+This entry documents the prepared release. Publication requires the verified
+commit, green CI and the `v1.0.0` tag; it does not claim that tagging occurred.
+
+---
+
 ## [v0.5.0] — Product Readiness — Release candidate — 2026-10-03
 
 The six readiness slices are implemented. Final tagging follows the release

@@ -10,6 +10,7 @@ from typing import Any
 
 from app.sessions.session_models import ConversationSession
 from app.sessions.session_repository import SessionRepository
+from app.sessions.database_tools import SESSION_SCHEMA_VERSION, require_supported_schema
 
 
 class SQLiteSessionRepository(SessionRepository):
@@ -49,7 +50,11 @@ class SQLiteSessionRepository(SessionRepository):
 
     def _initialize_schema(self) -> None:
         with self._connect() as connection:
+            require_supported_schema(connection.execute("PRAGMA user_version").fetchone()[0])
             connection.execute("PRAGMA journal_mode = WAL")
+            # Keep all schema changes in one serialized transaction.
+            connection.execute("BEGIN IMMEDIATE")
+            require_supported_schema(connection.execute("PRAGMA user_version").fetchone()[0])
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS sessions (
@@ -67,12 +72,11 @@ class SQLiteSessionRepository(SessionRepository):
                 )
                 """
             )
-            # Serialize concurrent startup migrations; never auto-claim legacy data.
-            connection.execute("BEGIN IMMEDIATE")
+            # Never auto-claim legacy data.
             columns = {row["name"] for row in connection.execute("PRAGMA table_info(sessions)")}
             if "owner_id" not in columns:
                 connection.execute("ALTER TABLE sessions ADD COLUMN owner_id TEXT")
-            connection.execute("PRAGMA user_version = 2")
+            connection.execute(f"PRAGMA user_version = {SESSION_SCHEMA_VERSION}")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS session_messages (

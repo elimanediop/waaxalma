@@ -4,7 +4,7 @@ services:
       context: ./backend
       args:
         INSTALL_OTEL: ${INSTALL_OTEL:-false}
-    image: waaxalma-backend:0.5.0
+    image: waaxalma-backend:1.0.0
     environment:
       APP_ENV: production
       OTEL_ENABLED: ${OTEL_ENABLED:-false}
@@ -68,7 +68,7 @@ services:
   ui:
     build:
       context: ./streamlit
-    image: waaxalma-ui:0.5.0
+    image: waaxalma-ui:1.0.0
     environment:
       APP_ENV: production
       BACKEND_API_URL: http://backend:8000

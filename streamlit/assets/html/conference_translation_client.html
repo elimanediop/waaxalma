@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>
+        Waaxalma Realtime Enhanced
+    </title>
+
+    __ASSET_CSS_conference_translation_client.1.css__
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="controls">
+
+        <div class="field">
+            <label for="sourceLanguage">
+                Remote language
+            </label>
+
+            <select id="sourceLanguage">
+                <option value="auto">
+                    Auto
+                </option>
+
+                <option
+                    value="fr"
+                    selected
+                >
+                    French
+                </option>
+
+                <option value="en">
+                    English
+                </option>
+
+                <option value="es">
+                    Spanish
+                </option>
+            </select>
+        </div>
+
+
+        <div class="field">
+            <label for="targetLanguage">
+                Translate for me into
+            </label>
+
+            <select id="targetLanguage">
+                <option value="fr">
+                    French
+                </option>
+
+                <option
+                    value="en"
+                    selected
+                >
+                    English
+                </option>
+
+                <option value="es">
+                    Spanish
+                </option>
+            </select>
+        </div>
+
+
+        <div class="field">
+            <label for="terminology">
+                Terminology
+            </label>
+
+            <input
+                id="terminology"
+                type="text"
+                placeholder="Waaxalma, Enhanced, Direct"
+            />
+        </div>
+
+        <button id="startButton">
+            Start inbound
+        </button>
+
+        <button
+            id="stopButton"
+            disabled
+        >
+            Stop
+        </button>
+
+    </div>
+
+
+    <div class="status-row">
+
+        <div class="status">
+            <span
+                id="statusDot"
+                class="status-dot"
+            ></span>
+
+            <span id="statusText">
+                Stopped
+            </span>
+        </div>
+
+        <span>
+            Inbound Enhanced
+        </span>
+
+    </div>
+
+
+    <div class="cards">
+
+        <div class="card">
+
+            <div class="card-title">
+                Remote transcript
+            </div>
+
+            <div
+                id="sourceTranscript"
+                class="transcript placeholder"
+            >
+                Start inbound translation and let the remote participant speak.
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-title">
+                Translation
+            </div>
+
+            <div
+                id="translationTranscript"
+                class="transcript placeholder"
+            >
+                Inbound translation will appear here and play through Local Monitor.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="metrics"
+        class="metrics"
+    ></div>
+
+    <div
+        style="
+            margin-top: 8px;
+            padding: 8px 10px;
+            border: 1px solid rgba(128,128,128,0.18);
+            border-radius: 7px;
+            font-size: 11px;
+            line-height: 1.4;
+            opacity: 0.72;
+        "
+    >
+        Inbound path only:
+        Conference Input → STT → translation → TTS → Local Monitor.
+        Primary / Conference Output is never used by this client.
+    </div>
+
+</div>
+
+
+__ASSET_JS_conference_translation_client.1.js__
+
+</body>
+</html>

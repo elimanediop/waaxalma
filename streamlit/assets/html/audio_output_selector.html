@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Waaxalma Primary Audio Output</title>
+
+    __ASSET_CSS_audio_output_selector.1.css__
+
+    __AUDIO_OUTPUT_MANAGER_SCRIPT__
+</head>
+
+<body>
+<div class="container">
+
+    <div class="title">
+        🔊 Primary / Conference Output
+    </div>
+
+    <div class="controls">
+
+        <div class="field">
+            <label for="outputDevice">
+                Output device
+            </label>
+
+            <select id="outputDevice">
+                <option value="">
+                    Default audio output
+                </option>
+            </select>
+        </div>
+
+        <button id="refreshButton">
+            Refresh
+        </button>
+
+        <button id="chooseButton">
+            Choose output device
+        </button>
+
+    </div>
+
+    <div
+        id="status"
+        class="status"
+    >
+        Discovering audio outputs...
+    </div>
+
+    <div
+        id="capabilities"
+        class="capabilities"
+    ></div>
+
+</div>
+
+__ASSET_JS_audio_output_selector.1.js__
+</body>
+</html>

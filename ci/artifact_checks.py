@@ -11,9 +11,18 @@ with zipfile.ZipFile(wheels[0]) as archive:
     names = archive.namelist()
     metadata = BytesParser().parsebytes(archive.read(next(n for n in names if n.endswith(".dist-info/METADATA"))))
     assert metadata["Name"] == "waaxalma-backend"
-    assert metadata["Version"] == "0.5.0"
+    assert metadata["Version"] == "1.0.0"
     assert "app/main.py" in names and "app/core/settings.py" in names
+    assert "app/framework/__init__.py" in names
+    assert "app/framework/testing.py" in names
     assert not any(n.endswith(".env") or n.endswith(".db") for n in names)
+def hash_file(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
 files = sorted(p for p in (root / "dist").iterdir() if p.is_file() and p.name != "SHA256SUMS")
-(root / "dist/SHA256SUMS").write_text("".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in files))
+(root / "dist/SHA256SUMS").write_text("".join(f"{hash_file(p)}  {p.name}\n" for p in files), encoding="utf-8")
 print("Wheel metadata and artifact checksums: OK")

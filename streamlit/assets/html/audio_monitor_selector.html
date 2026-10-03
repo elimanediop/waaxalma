@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Waaxalma Local Monitor</title>
+
+    __ASSET_CSS_audio_monitor_selector.1.css__
+
+    __AUDIO_OUTPUT_MANAGER_SCRIPT__
+</head>
+
+<body>
+<div class="container">
+
+    <div class="title">
+        🎧 Local Monitor
+    </div>
+
+    <div class="controls">
+
+        <label class="toggle">
+            <input
+                id="monitorEnabled"
+                type="checkbox"
+            />
+            Enable monitoring
+        </label>
+
+        <div class="field">
+            <label for="monitorDevice">
+                Monitor device
+            </label>
+
+            <select id="monitorDevice">
+                <option value="">
+                    Default audio output
+                </option>
+            </select>
+        </div>
+
+        <button id="refreshButton">
+            Refresh
+        </button>
+
+    </div>
+
+    <div
+        id="status"
+        class="status"
+    >
+        Discovering monitor outputs...
+    </div>
+
+    <div
+        id="capabilities"
+        class="capabilities"
+    ></div>
+
+</div>
+
+__ASSET_JS_audio_monitor_selector.1.js__
+
+</body>
+</html>

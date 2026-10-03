@@ -1,3 +1,4 @@
+from app.api.contracts import ERROR_RESPONSES
 from fastapi import Depends
 from app.security.backend import resolve_security_context, require_session_access
 from app.security.security_context import SecurityContext
@@ -24,7 +25,7 @@ from app.validation.audio_validator import (
 from app.orchestration.result_handler import require_agent_output
 from app.registry.agent_registry import AgentRegistry
 
-router = APIRouter(prefix="/api/voice", tags=["voice"])
+router = APIRouter(responses=ERROR_RESPONSES, prefix="/api/voice", tags=["voice"])
 
 def build_agent_registry() -> AgentRegistry:
     registry = AgentRegistry()
