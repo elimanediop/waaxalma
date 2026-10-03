@@ -1,6 +1,6 @@
 import ast,pathlib,re,subprocess,tempfile,runpy,os
 root=pathlib.Path(__file__).resolve().parents[1] / 'streamlit'
-source=(root/'streamlit_app.py').read_text()
+source=(root/'streamlit_app.py').read_text(encoding='utf-8')
 tree=ast.parse(source)
 ns={'Path':pathlib.Path,'NORMALIZED_API_URL':'http://backend:8000','PUBLIC_NORMALIZED_API_URL':'http://localhost:8000','CLIENT_ID':'waaxalma-for-elimane'}
 for name,file in [('AUDIO_INPUT_MANAGER_FILE','audio_input_manager.js'),('AUDIO_OUTPUT_MANAGER_FILE','audio_output_manager.js'),('CONFERENCE_INPUT_MANAGER_FILE','conference_input_manager.js'),('CONFERENCE_TRANSLATION_CLIENT_FILE','conference_translation_client.html')]:ns[name]=root/file
@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as out:
   assert 'http://localhost:8000' in html and 'waaxalma-for-elimane' in html
   for i,script in enumerate(re.findall(r'<script\b[^>]*>(.*?)</script>',html,re.S|re.I)):
    if not script.strip():continue
-   path=pathlib.Path(out)/f'{name}.{i}.js';path.write_text(script)
+   path=pathlib.Path(out)/f'{name}.{i}.js';path.write_text(script, encoding='utf-8')
    subprocess.run(['node','--check',str(path)],check=True,capture_output=True)
    count+=1
  print(f'UI URL separation, identity injection, generated JavaScript ({count} scripts): OK')
