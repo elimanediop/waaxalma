@@ -912,4 +912,6 @@ New agent, provider, stage, pipeline, realtime, or observability behavior should
 
 ## 📄 License
 
-Licensed under the Apache License 2.0.
+Waxaamla is licensed under the Apache License 2.0.
+
+See the [LICENSE](LICENSE) file for details.
