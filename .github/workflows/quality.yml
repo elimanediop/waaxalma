@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches: [main, master, develop]
-    tags: [v0.5.0]
+    tags: [v1.0.0]
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,7 @@ jobs:
         with:
           node-version: '22'
       - run: python ci/static_checks.py
+      - run: python ci/runtime_checks.py
       - run: python ci/release_checks.py
 
   backend-tests:
@@ -46,6 +47,8 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --require-hashes -r backend/requirements-dev.lock
       - run: python -m pip check
+      - run: python ci/api_contract_checks.py
+
       - run: python -m pytest -q --junitxml=../test-results/backend.xml
         working-directory: backend
       - uses: actions/upload-artifact@v4
@@ -129,10 +132,15 @@ jobs:
           "$RUNNER_TEMP/package-env/bin/python" -m pip install --require-hashes -r backend/requirements.lock
           "$RUNNER_TEMP/package-env/bin/python" -m pip install --no-deps dist/*.whl
           "$RUNNER_TEMP/package-env/bin/python" -m pip check
+          cp -R examples/framework_extension "$RUNNER_TEMP/framework-extension"
           cd "$RUNNER_TEMP"
-          APP_ENV=test "$RUNNER_TEMP/package-env/bin/python" -c 'from app.main import app; from app.version import __version__; assert __version__ == "0.5.0"'
+          "$RUNNER_TEMP/package-env/bin/waaxalma-session-database" --help
+          APP_ENV=invalid-for-runtime OPENAI_API_KEY= "$RUNNER_TEMP/package-env/bin/python" -c 'import sys; from app.framework import BaseAgent, AgentInput, AgentResult, PipelineStage, TranslationProvider; assert "app.bootstrap.container" not in sys.modules; assert "openai" not in sys.modules'
+          APP_ENV=invalid-for-runtime OPENAI_API_KEY= "$RUNNER_TEMP/package-env/bin/python" "$RUNNER_TEMP/framework-extension/check_extension.py"
+          APP_ENV=test "$RUNNER_TEMP/package-env/bin/python" -c 'from app.main import app; from app.version import __version__; assert __version__ == "1.0.0"'
 
       - run: python ci/artifact_checks.py
+      - run: python ci/verify_artifacts.py
 
       - uses: actions/upload-artifact@v4
         with:
@@ -174,8 +182,9 @@ jobs:
 
       - name: Export verified images and checksums
         run: |
-          docker save waaxalma-backend:0.5.0 waaxalma-ui:0.5.0 | gzip > dist/waaxalma-images.tar.gz
+          docker save waaxalma-backend:1.0.0 waaxalma-ui:1.0.0 | gzip > dist/waaxalma-images.tar.gz
           python ci/artifact_checks.py
+          python ci/verify_artifacts.py
 
       - uses: actions/upload-artifact@v4
         with:

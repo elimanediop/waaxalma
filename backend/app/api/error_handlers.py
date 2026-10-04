@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 def register_exception_handlers(app: FastAPI) -> None:
     from starlette.exceptions import HTTPException
-    from fastapi.exception_handlers import http_exception_handler
 
     @app.exception_handler(HTTPException)
     async def http_error(request, exc):
@@ -28,7 +27,14 @@ def register_exception_handlers(app: FastAPI) -> None:
         known = {code.value for code in ErrorCode} | {"CLIENT_ID_REQUIRED", "INVALID_CLIENT_ID", "SESSION_ACCESS_DENIED"}
         code = exc.detail.get("code") if isinstance(exc.detail, dict) else None
         enrich(error_type=code if code in known else "http_error")
-        return await http_exception_handler(request, exc)
+        if isinstance(exc.detail, dict) and isinstance(exc.detail.get("code"), str) and isinstance(exc.detail.get("message"), str):
+            detail = exc.detail
+        else:
+            detail = {
+                "code": f"HTTP_{exc.status_code}",
+                "message": str(exc.detail) if exc.status_code < 500 else "An internal error occurred.",
+            }
+        return JSONResponse(status_code=exc.status_code, content={"detail": detail}, headers=exc.headers)
 
     @app.exception_handler(PipelineException)
     async def pipeline_exception_handler(

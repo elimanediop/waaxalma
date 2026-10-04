@@ -1,5 +1,6 @@
 """Release hygiene on tracked files; reports paths only, never matched secrets."""
 from pathlib import Path
+import os
 import re
 import subprocess
 import sys
@@ -29,9 +30,15 @@ metadata = tomllib.loads((root/'backend/pyproject.toml').read_text())
 version = metadata['project']['version']
 namespace = {}
 exec((root/'backend/app/version.py').read_text(),namespace)
-if version != namespace['__version__'] or version != '0.5.0':
+if version != namespace['__version__'] or version != '1.0.0':
     problems.append('Backend version mismatch')
-for document in ['README.md','SECURITY.md','docs/operations.md','docs/release-v0.5.0.md','docs/Architecture_Vision_Book_v0.5.0.md']:
+compose = (root/'compose.yaml').read_text(encoding='utf-8')
+for image in ('backend', 'ui'):
+    if f'waaxalma-{image}:{version}' not in compose:
+        problems.append(f'Compose {image} version mismatch')
+if os.environ.get('GITHUB_REF_TYPE') == 'tag' and os.environ.get('GITHUB_REF_NAME') != f'v{version}':
+    problems.append('Release tag does not match package version')
+for document in ['README.md','SECURITY.md','docs/operations.md','docs/CHANGELOG.md','docs/release-v1.0.0.md','docs/Architecture_Vision_Book_v1.0.0.md','docs/book/Waaxalma_Architecture_Vision_Book_v1.0.0_EN.docx','docs/framework-contracts.md','docs/extension-conformance.md','docs/api-streaming-stability.md','docs/supported-runtime.md','docs/upgrade-v0.5-to-v1.md']:
     if not (root/document).is_file():
         problems.append(document+': missing release documentation')
 if problems:

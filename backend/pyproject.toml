@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "waaxalma-backend"
-version = "0.5.0"
+version = "1.0.0"
 description = "Waaxalma voice translation backend"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 waaxalma-backend = "app.cli:main"
+waaxalma-session-database = "scripts.session_database:main"
 
 [tool.setuptools.packages.find]
 include = ["app*", "scripts*"]

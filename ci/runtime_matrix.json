@@ -1,0 +1,11 @@
+{
+  "python_minor": "3.12",
+  "requires_python": ">=3.12,<3.13",
+  "backend_ci_os": ["ubuntu-latest", "windows-latest"],
+  "ui_ci_os": ["ubuntu-latest", "windows-latest"],
+  "node_major": "22",
+  "backend_workers": 1,
+  "sqlite_schema_version": 2,
+  "container_os": "linux",
+  "container_architecture": "amd64"
+}

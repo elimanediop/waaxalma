@@ -1,0 +1,45 @@
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background:
+                transparent;
+        }
+
+        .container {
+            width: 100%;
+            padding: 0;
+        }
+
+        audio {
+            display: block;
+            width: 100%;
+            height: 54px;
+        }
+
+        #error {
+            display: none;
+            margin-top: 6px;
+
+            color: #b42318;
+            font-size: 12px;
+        }
+
+        #error.visible {
+            display: block;
+        }
+    

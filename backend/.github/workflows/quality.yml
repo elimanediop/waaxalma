@@ -1,0 +1,198 @@
+name: Waaxalma quality
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, develop]
+    tags: [v0.5.0]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python ci/static_checks.py
+      - run: python ci/release_checks.py
+
+  backend-tests:
+    needs: static
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      APP_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --require-hashes -r backend/requirements-dev.lock
+      - run: python -m pip check
+      - run: python -m pytest -q --junitxml=../test-results/backend.xml
+        working-directory: backend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tests-${{ matrix.os }}
+          path: test-results/*.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  ui-install:
+    needs: static
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create isolated UI environment
+        shell: bash
+        run: |
+          python -m venv .venv-ui
+          python -c "import os; from pathlib import Path; scripts = Path('.venv-ui') / ('Scripts' if os.name == 'nt' else 'bin'); f = open(os.environ['GITHUB_PATH'], 'a', encoding='utf-8'); f.write(str(scripts.resolve()) + '\n'); f.close()"
+
+      - run: python -m pip install --require-hashes -r streamlit/requirements.lock
+      - run: python -m pip check
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: python ci/ui_render_checks.py
+      - run: python -c "import streamlit; from config import UISettings; UISettings()"
+        working-directory: streamlit
+
+  otel-tests:
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --require-hashes -r backend/requirements-dev.lock
+      - run: python -m pip install --require-hashes -r backend/requirements-otel.lock
+      - run: python -m pip check
+      - run: python -m pytest -q tests/observability
+        working-directory: backend
+
+  package:
+    needs: [backend-tests, ui-install, otel-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_DATE_EPOCH: '1760000000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install --require-hashes -r backend/requirements-dev.lock
+
+      - run: python -m build --wheel --no-isolation --outdir ../dist
+        working-directory: backend
+
+      - name: Install wheel in a fresh environment outside source
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/package-env"
+          "$RUNNER_TEMP/package-env/bin/python" -m pip install --require-hashes -r backend/requirements.lock
+          "$RUNNER_TEMP/package-env/bin/python" -m pip install --no-deps dist/*.whl
+          "$RUNNER_TEMP/package-env/bin/python" -m pip check
+          cp -R examples/framework_extension "$RUNNER_TEMP/framework-extension"
+          cd "$RUNNER_TEMP"
+          APP_ENV=invalid-for-runtime OPENAI_API_KEY= "$RUNNER_TEMP/package-env/bin/python" -c 'import sys; from app.framework import BaseAgent, AgentInput, AgentResult, PipelineStage, TranslationProvider; assert "app.bootstrap.container" not in sys.modules; assert "openai" not in sys.modules'
+          APP_ENV=invalid-for-runtime OPENAI_API_KEY= "$RUNNER_TEMP/package-env/bin/python" "$RUNNER_TEMP/framework-extension/check_extension.py"
+          APP_ENV=test "$RUNNER_TEMP/package-env/bin/python" -c 'from app.main import app; from app.version import __version__; assert __version__ == "0.5.0"'
+
+      - run: python ci/artifact_checks.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  container:
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OPENAI_API_KEY: ci-placeholder-no-provider-calls
+      COMPOSE_PROJECT_NAME: waaxalma-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package
+          path: dist
+
+      - run: docker compose config --quiet
+      - run: docker compose build
+      - run: docker compose up --wait --wait-timeout 120
+
+      - name: Verify runtime users
+        run: |
+          test "$(docker compose exec -T backend id -u)" = 10001
+          test "$(docker compose exec -T ui id -u)" = 10001
+
+      - run: python ci/smoke.py --ui http://127.0.0.1:8501
+      - run: python ci/restart_smoke.py
+
+      - name: Export verified images and checksums
+        run: |
+          docker save waaxalma-backend:0.5.0 waaxalma-ui:0.5.0 | gzip > dist/waaxalma-images.tar.gz
+          python ci/artifact_checks.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waaxalma-release-candidate-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Container diagnostics
+        if: always()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color
+
+      - name: Clean disposable CI environment
+        if: always()
+        run: docker compose down --volumes --remove-orphans

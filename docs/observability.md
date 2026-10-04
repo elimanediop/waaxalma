@@ -1,6 +1,6 @@
-# v0.5.0 — Production Observability
+# Production Observability
 
-Slice 6 retains this design and adds opt-in retention metrics; current Compose images use the final-version `0.5.0` tag while Git release tagging remains an operator action.
+The v1.0.0 release retains business observability and opt-in retention metrics. Compose images use `1.0.0`; Git release tagging follows final acceptance.
 
 This slice adds Waaxalma business events, provider measurements, session metrics and optional OpenTelemetry. It keeps the existing pipeline and realtime metrics. No cloud backend, collector or deployment is required by default.
 
@@ -8,7 +8,7 @@ This slice adds Waaxalma business events, provider measurements, session metrics
 
 Apply the ZIP as an overlay at the root containing `backend/`, `streamlit/` and `compose.yaml`. Merge `backend/`, `.github/`, `ci/` and `docs/`; replace `compose.yaml` with the supplied version. Preserve your `.env`, session database, virtual environments and root README. The updated `.env.example` files are reference templates only.
 
-Backend dependencies are unchanged by default. OpenTelemetry has a separate universal, hashed lock. The CI adds an `otel-tests` quality gate and changes the candidate image names to `0.5.0-slice5`; update required branch checks accordingly. It does not create the final v0.5.0 tag.
+Backend dependencies are unchanged by default. OpenTelemetry has a separate universal, hashed lock. CI runs the optional SDK through the `otel-tests` quality gate. Runtime installations without that optional lock skip its four SDK tests.
 
 ```powershell
 # Backend development environment, from backend/:
@@ -77,7 +77,7 @@ Logical call durations include retries and backoff. Streaming durations include 
 
 Active conversations include rows restored after restart, including legacy unowned rows. Closed sessions are excluded. Counting reads SQLite in existing read-only mode and cannot recreate a removed DB. It does not load conversation histories. Failed scrapes do not fabricate zero active sessions. SQLite uses a short 250 ms lock timeout; a blocked or missing DB signals scrape_error. Custom repositories need `count_active()` to support this gauge.
 
-Counters/histograms are process-local and reset on restart; they are not billing records. This packaging runs one backend worker. Multiple workers require a dedicated Prometheus multiprocess setup and coordinated lifecycle counting, which this slice does not implement. Session duration is wall time until explicit closure, not speech duration or inactivity timeout. Retention and abandoned-session cleanup remain Slice 6. Repeated close calls in sequence record one duration; lifecycle metrics are best-effort observations, not an exactly-once audit ledger across concurrent writers or crashes.
+Counters/histograms are process-local and reset on restart; they are not billing records. This packaging runs one backend worker. Multiple workers require a dedicated Prometheus multiprocess setup and coordinated lifecycle counting, which this slice does not implement. Session duration is wall time until explicit closure, not speech duration or inactivity timeout. Closed-session retention is documented in `operations.md`; active sessions are excluded. Repeated close calls in sequence record one duration; lifecycle metrics are best-effort observations, not an exactly-once audit ledger across concurrent writers or crashes.
 
 Example PromQL:
 
@@ -125,7 +125,7 @@ OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://host.docker.internal:4318/v1/traces
 
 Rebuild the backend image after changing INSTALL_OTEL. `host.docker.internal` suits Docker Desktop; on Linux use a collector address reachable from the container network. This slice does not provision a collector or a visualization stack. Use a trusted collector/network boundary; exporter authentication headers are not configured here.
 
-Spans cover requests, agent executions and logical provider calls/streams. Incoming standard trace context is extracted for HTTP/WebSocket connections; child spans retain the parent relationship. Trace attributes use the same bounded metadata field set as events. Exception recording is disabled to avoid exporting content, while error status remains available. Outbound SDK auto-instrumentation is deliberately absent. The private SDK provider avoids changing process-global tracing ownership. `OTEL_TRACES_SAMPLE_RATIO` controls root sampling (default 1.0; range 0–1); incoming sampled/unsampled parent decisions are respected. This explicit sampler does not depend on ambient SDK sampler variables. The batch exporter shuts down in the application lifespan on a worker thread; a failed collector export does not fail a business request. Collector backlog/export time can still affect shutdown timing; full graceful-shutdown hardening remains Slice 6.
+Spans cover requests, agent executions and logical provider calls/streams. Incoming standard trace context is extracted for HTTP/WebSocket connections; child spans retain the parent relationship. Trace attributes use the same bounded metadata field set as events. Exception recording is disabled to avoid exporting content, while error status remains available. Outbound SDK auto-instrumentation is deliberately absent. The private SDK provider avoids changing process-global tracing ownership. `OTEL_TRACES_SAMPLE_RATIO` controls root sampling (default 1.0; range 0–1); incoming sampled/unsampled parent decisions are respected. This explicit sampler does not depend on ambient SDK sampler variables. The batch exporter shuts down in the application lifespan on a worker thread; a failed collector export does not fail a business request. Collector backlog/export time can still affect shutdown timing; shutdown budgets and restart behavior are documented in `operations.md`.
 
 The optional CI job executes SDK tests with an in-memory exporter, covering parent propagation and absence of exception text. Default dependency jobs execute without the SDK. Optional packages do not enter the default runtime lock.
 

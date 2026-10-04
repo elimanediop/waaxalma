@@ -13,10 +13,10 @@ for directory in ("backend/app", "backend/scripts", "backend/tests", "streamlit"
             continue
         ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         count += 1
-for path in (root / "streamlit").glob("*.js"):
+for path in (root / "streamlit").rglob("*.js"):
     subprocess.run(["node", "--check", str(path)], check=True)
 with tempfile.TemporaryDirectory() as directory:
-    for path in (root / "streamlit").glob("*.html"):
+    for path in (root / "streamlit").rglob("*.html"):
         for index, script in enumerate(re.findall(r"<script\b[^>]*>(.*?)</script>", path.read_text(encoding="utf-8"), re.S | re.I)):
             if not script.strip():
                 continue

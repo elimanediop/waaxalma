@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8" />
+
+
+
+    <title>Waaxalma Realtime Translation</title>
+
+
+
+    __ASSET_CSS_realtime_client.1.css__
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="container">
+
+
+
+    <!-- ================================================== -->
+
+    <!-- Controls                                           -->
+
+    <!-- ================================================== -->
+
+
+
+    <div class="control-bar">
+
+
+
+        <div class="language-control">
+
+
+
+            <label for="language">
+
+                Target language
+
+            </label>
+
+
+
+            <select id="language">
+
+
+
+                <option value="en">
+
+                    English
+
+                </option>
+
+
+
+                <option value="fr">
+
+                    French
+
+                </option>
+
+
+
+                <option value="es">
+
+                    Spanish
+
+                </option>
+
+
+
+            </select>
+
+
+
+        </div>
+
+
+
+
+
+        <button id="start">
+
+            ▶ Start
+
+        </button>
+
+
+
+
+
+        <button
+
+            id="stop"
+
+            disabled
+
+        >
+
+            ■ Stop
+
+        </button>
+
+
+
+
+
+        <div
+
+            id="status"
+
+            class="status"
+
+        >
+
+            <span
+
+                class="status-dot"
+
+            ></span>
+
+
+
+            <span
+
+                id="status-text"
+
+            >
+
+                Stopped
+
+            </span>
+
+        </div>
+
+
+
+    </div>
+</div>
+
+
+
+
+
+
+    <!-- ================================================== -->
+
+    <!-- Translation                                        -->
+
+    <!-- ================================================== -->
+
+
+
+    <div class="translation-card">
+
+
+
+        <div class="card-header">
+
+
+
+            <span class="card-title">
+
+                Live translation
+
+            </span>
+
+
+
+            <span
+
+                id="live-badge"
+
+                class="live-badge"
+
+            >
+
+                LIVE
+
+            </span>
+
+
+
+        </div>
+
+
+
+
+
+        <div id="translated-transcript">
+
+
+
+            <span class="translation-placeholder">
+
+                Start speaking to see the translation.
+
+            </span>
+
+
+
+        </div>
+
+
+
+    </div>
+
+
+
+
+
+    <!-- ================================================== -->
+
+    <!-- Source transcript                                  -->
+
+    <!-- ================================================== -->
+
+
+
+    <div
+
+        id="source-container"
+
+        class="source-container"
+
+    >
+
+
+
+        <strong>
+
+            Source transcript
+
+        </strong>
+
+
+
+        <div id="source-transcript">
+
+        </div>
+
+
+
+    </div>
+
+
+
+
+
+    <div
+
+        id="source-unavailable"
+
+        class="mode-info"
+
+    >
+
+        Source transcript is not exposed by the current
+
+        WebRTC Direct session.
+
+    </div>
+
+
+
+
+</div>
+
+
+
+
+
+__ASSET_JS_realtime_client.1.js__
+
+
+
+</body>
+
+</html>

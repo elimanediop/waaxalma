@@ -1,12 +1,20 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RealtimeEnhancedStartEvent(BaseModel):
     type: Literal["session.start"]
 
-    target_language: str
+    target_language: str = Field(min_length=1)
+
+    @field_validator("target_language")
+    @classmethod
+    def normalize_target(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not value:
+            raise ValueError("Target language cannot be empty.")
+        return value
 
     context: str | None = None
 
@@ -27,6 +35,8 @@ class RealtimeEnhancedTranscriptDeltaEvent(BaseModel):
 
 class RealtimeEnhancedTranscriptCommitEvent(BaseModel):
     type: Literal["transcript.commit"]
+
+    text: str | None = None
 
 
 class RealtimeEnhancedResetEvent(BaseModel):
@@ -55,6 +65,8 @@ class RealtimeEnhancedSessionReadyEvent(BaseModel):
     session_id: str
 
     target_language: str
+
+    voice_id: str | None = None
 
 
 class RealtimeEnhancedErrorEvent(BaseModel):

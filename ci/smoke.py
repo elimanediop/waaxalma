@@ -24,8 +24,10 @@ def request(path, expected=200, method="GET", body=None, client=None):
         assert response.code == expected, (path, response.code, expected)
         return json.loads(response.read())
 
-assert request("/health/live")["status"] == "ok"
-assert request("/health/ready")["status"] == "ready"
+for endpoint, status in (("/health/live", "ok"), ("/health/ready", "ready")):
+    payload = request(endpoint)
+    assert payload == {"status": status, "service": "waaxalma", "version": "1.0.0"}, payload
+assert request("/openapi.json")["info"]["version"] == "1.0.0"
 request("/api/sessions", expected=401, method="POST", body={})
 session = request("/api/sessions", method="POST", body={}, client="ci-owner")["session_id"]
 path = "/api/sessions/" + session
