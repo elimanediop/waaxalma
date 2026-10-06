@@ -182,7 +182,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(waaxalma_provider_estimated_cost_usd_total{provider=~\"$provider\",operation=~\"$operation\"}[$__range]))",
+          "expr": "sum(waaxalma_provider_estimated_cost_usd_total{provider=~\"$provider\",operation=~\"$operation\"})",
           "range": true
         }
       ],
@@ -1125,7 +1125,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (provider,operation) (increase(waaxalma_provider_estimated_cost_usd_total{provider=~\"$provider\",operation=~\"$operation\"}[$__rate_interval]))",
+          "expr": "sum by (provider,operation) (waaxalma_provider_estimated_cost_usd_total{provider=~\"$provider\",operation=~\"$operation\"})",
           "legendFormat": "{{provider}} / {{operation}}",
           "range": true
         }
@@ -1139,7 +1139,7 @@
     "waaxalma",
     "prometheus",
     "observability",
-    "v1.0.3"
+    "v1.0.2"
   ],
   "templating": {
     "list": [
@@ -1202,7 +1202,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Waaxalma \u2014 Overview",
+  "title": "Waaxalma — Overview",
   "uid": "waaxalma-overview",
   "version": 1
 }
