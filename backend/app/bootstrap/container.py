@@ -29,12 +29,8 @@ from app.pipelines.sequential_pipeline import SequentialPipeline
 from app.pipelines.stages.context_stage import ContextStage
 from app.pipelines.stages.quality_stage import QualityStage
 from app.pipelines.stages.speech_stage import SpeechStage
-from app.pipelines.stages.transcription_stage import (
-    TranscriptionStage,
-)
-from app.pipelines.stages.translation_stage import (
-    TranslationStage,
-)
+from app.pipelines.stages.transcription_stage import TranscriptionStage
+from app.pipelines.stages.translation_stage import TranslationStage
 
 from app.providers.deterministic_quality_provider import (
     DeterministicQualityProvider,
@@ -70,6 +66,9 @@ from app.services.realtime_enhanced_service import (
 from app.services.realtime_translation_service import (
     RealtimeTranslationService,
 )
+from app.services.text_translation_service import (
+    TextTranslationService,
+)
 
 from app.sessions.in_memory_session_repository import (
     InMemorySessionRepository,
@@ -86,15 +85,15 @@ from app.skills.speech_to_text_skill import SpeechToTextSkill
 from app.skills.translation_skill import TranslationSkill
 
 
-
-
 def build_session_manager() -> SessionManager:
     if SESSION_STORAGE_BACKEND == "memory":
         repository = InMemorySessionRepository()
+
     elif SESSION_STORAGE_BACKEND == "sqlite":
         repository = SQLiteSessionRepository(
             SESSION_DB_PATH
         )
+
     else:
         raise RuntimeError(
             "Unsupported SESSION_STORAGE_BACKEND: "
@@ -166,6 +165,7 @@ def build_provider_registry() -> ProviderRegistry:
             model=STREAMING_TRANSLATION_MODEL,
         ),
     )
+
     registry.register(
         capability="streaming_speech",
         name="openai",
@@ -234,6 +234,68 @@ def build_pipeline_registry(
     return registry
 
 
+def build_text_translation_service(
+    provider_registry: ProviderRegistry,
+    translation_provider_name: str = TRANSLATION_PROVIDER,
+    context_provider_name: str = CONTEXT_PROVIDER,
+    quality_provider_name: str = QUALITY_PROVIDER,
+) -> TextTranslationService:
+    """
+    Build the text-only translation capability introduced in v1.1.0.
+
+    Pipeline:
+        Context -> Translation -> Quality
+
+    No STT or TTS capability is involved.
+    """
+
+    translation_provider = provider_registry.get(
+        capability="translation",
+        name=translation_provider_name,
+    )
+
+    context_provider = provider_registry.get(
+        capability="context",
+        name=context_provider_name,
+    )
+
+    quality_provider = provider_registry.get(
+        capability="quality",
+        name=quality_provider_name,
+    )
+
+    translation_skill = TranslationSkill(
+        provider=translation_provider,
+    )
+
+    context_skill = ContextSkill(
+        provider=context_provider,
+    )
+
+    quality_skill = QualitySkill(
+        provider=quality_provider,
+    )
+
+    pipeline = SequentialPipeline(
+        name="translation.text",
+        stages=[
+            ContextStage(
+                context_skill=context_skill,
+            ),
+            TranslationStage(
+                translation_skill=translation_skill,
+            ),
+            QualityStage(
+                quality_skill=quality_skill,
+            ),
+        ],
+    )
+
+    return TextTranslationService(
+        pipeline=pipeline,
+    )
+
+
 def build_agent_registry(
     provider_registry: ProviderRegistry,
     translation_provider_name: str = TRANSLATION_PROVIDER,
@@ -291,7 +353,7 @@ def build_agent_registry(
         provider=quality_provider,
     )
 
-    # Build and register pipelines
+    # Build and register interpreter pipelines
     pipeline_registry = build_pipeline_registry(
         translation_skill=translation_skill,
         speech_skill=speech_skill,
@@ -360,6 +422,7 @@ realtime_translation_service = RealtimeTranslationService(
     provider_name=REALTIME_TRANSLATION_PROVIDER,
 )
 
+
 # Realtime Enhanced — v0.4.2
 realtime_enhanced_service = RealtimeEnhancedService(
     provider_registry=provider_registry,
@@ -368,13 +431,22 @@ realtime_enhanced_service = RealtimeEnhancedService(
     speech_provider_name=STREAMING_SPEECH_PROVIDER,
 )
 
+
+# Text Translation — v1.1.0
+text_translation_service = build_text_translation_service(
+    provider_registry=provider_registry,
+)
+
+
 agent_registry = build_agent_registry(
     provider_registry=provider_registry,
 )
 
+
 agent_manager = AgentManager(
     registry=agent_registry,
 )
+
 
 agent_orchestrator = build_orchestrator(
     registry=agent_registry,
