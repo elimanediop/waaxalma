@@ -1,36 +1,40 @@
+from fastapi import APIRouter, Depends
+
+from app.observability.context import fields as observability_fields
+
 from app.api.contracts import ERROR_RESPONSES
-from fastapi import Depends
-from app.security.backend import resolve_security_context, check_existing_session
-from app.security.security_context import SecurityContext
-from app.bootstrap.container import session_manager
-import uuid
-
+from app.bootstrap.container import (
+    agent_manager,
+    session_manager,
+    text_translation_service,
+)
 from app.core.agent_execution_factory import AgentExecutionFactory
-from fastapi import APIRouter, HTTPException
-
-from app.bootstrap.container import agent_manager
-from app.registry.agent_registry import AgentRegistry
-from app.orchestration.agent_orchestrator import AgentOrchestrator
-from app.agents.translation_agent import TranslationAgent
-from app.core.agent_input import AgentInput
-from app.core.logging import logger
-from app.core.session_context import SessionContext
-from app.models.request_models import TranslateTextRequest, SpeakTextRequest, TranslateAndSpeakRequest
+from app.models.request_models import (
+    SpeakTextRequest,
+    TranslateAndSpeakRequest,
+    TranslateTextRequest,
+)
 from app.models.response_models import (
-    TranslateTextResponse,
     SpeakTextResponse,
     TranslateAndSpeakResponse,
+    TranslateTextResponse,
 )
-from app.skills import speech_skill, translation_skill
+from app.orchestration.agent_orchestrator import AgentOrchestrator
 from app.orchestration.result_handler import require_agent_output
-
-router = APIRouter(responses=ERROR_RESPONSES, prefix="/api/text", tags=["text"])
-
-# Existing instance kept temporarily for the routes not yet migrated.
-TranslationAgent(
-    translation_skill=translation_skill,
-    speech_skill=speech_skill,
+from app.registry.agent_registry import AgentRegistry
+from app.security.backend import (
+    check_existing_session,
+    resolve_security_context,
 )
+from app.security.security_context import SecurityContext
+
+
+router = APIRouter(
+    responses=ERROR_RESPONSES,
+    prefix="/api/text",
+    tags=["text"],
+)
+
 
 def build_agent_registry() -> AgentRegistry:
     registry = AgentRegistry()
@@ -47,16 +51,24 @@ agent_orchestrator = AgentOrchestrator(
     registry=agent_registry,
 )
 
+
 @router.post(
     "/translate",
     response_model=TranslateTextResponse,
 )
 async def translate_text(
     request: TranslateTextRequest,
-    security: SecurityContext = Depends(resolve_security_context),
+    security: SecurityContext = Depends(
+        resolve_security_context
+    ),
 ) -> TranslateTextResponse:
     if request.session_id:
-        check_existing_session(session_manager, request.session_id, security)
+        check_existing_session(
+            session_manager,
+            request.session_id,
+            security,
+        )
+
     execution = AgentExecutionFactory.create(
         operation="translate",
         payload={
@@ -69,15 +81,30 @@ async def translate_text(
         target_language=request.target_language,
     )
 
-    result = await agent_orchestrator.execute(
-        agent_name="translation",
-        agent_input=execution.agent_input,
+    result = await text_translation_service.translate(
+        text=request.text,
+        source_language=request.source_language,
+        target_language=request.target_language,
+        session_id=request.session_id,
         context=execution.context,
     )
 
-    output = require_agent_output(result)
+    current_observability = observability_fields()
+    current_request_id = current_observability.get(
+        "request_id"
+    )
 
-    return TranslateTextResponse(**output)
+    if not current_request_id:
+        raise RuntimeError(
+            "Request ID is missing from observability context."
+        )
+
+    return TranslateTextResponse(
+        request_id=current_request_id,
+        agent="translation",
+        original_text=result.source_text,
+        translated_text=result.translated_text,
+    )
 
 
 @router.post(
@@ -86,10 +113,17 @@ async def translate_text(
 )
 async def speak_text(
     request: SpeakTextRequest,
-    security: SecurityContext = Depends(resolve_security_context),
+    security: SecurityContext = Depends(
+        resolve_security_context
+    ),
 ) -> SpeakTextResponse:
     if request.session_id:
-        check_existing_session(session_manager, request.session_id, security)
+        check_existing_session(
+            session_manager,
+            request.session_id,
+            security,
+        )
+
     execution = AgentExecutionFactory.create(
         operation="speak",
         payload={
@@ -117,10 +151,17 @@ async def speak_text(
 )
 async def translate_and_speak(
     request: TranslateAndSpeakRequest,
-    security: SecurityContext = Depends(resolve_security_context),
+    security: SecurityContext = Depends(
+        resolve_security_context
+    ),
 ) -> TranslateAndSpeakResponse:
     if request.session_id:
-        check_existing_session(session_manager, request.session_id, security)
+        check_existing_session(
+            session_manager,
+            request.session_id,
+            security,
+        )
+
     execution = AgentExecutionFactory.create(
         operation="translate_and_speak",
         payload={

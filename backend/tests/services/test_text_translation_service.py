@@ -1,3 +1,4 @@
+from app.core.session_context import SessionContext
 import pytest
 
 from app.services.text_translation_service import (
@@ -180,3 +181,50 @@ async def test_translate_normalizes_input():
     assert pipeline.received_state.get(
         "target_language"
     ) == "en"
+
+@pytest.mark.asyncio
+async def test_translate_propagates_existing_session_id():
+    pipeline = FakeTextTranslationPipeline()
+
+    service = TextTranslationService(
+        pipeline=pipeline,
+    )
+
+    await service.translate(
+        text="Bonjour",
+        source_language="fr",
+        target_language="en",
+        session_id="session-123",
+    )
+
+    assert (
+        pipeline.received_context.session_id
+        == "session-123"
+    )
+
+@pytest.mark.asyncio
+async def test_translate_uses_provided_session_context():
+    pipeline = FakeTextTranslationPipeline()
+
+    service = TextTranslationService(
+        pipeline=pipeline,
+    )
+
+    context = SessionContext(
+        session_id="session-123",
+        source_language="fr",
+        target_language="en",
+    )
+
+    await service.translate(
+        text="Bonjour",
+        source_language="fr",
+        target_language="en",
+        context=context,
+    )
+
+    assert pipeline.received_context is context
+    assert (
+        pipeline.received_context.session_id
+        == "session-123"
+    )

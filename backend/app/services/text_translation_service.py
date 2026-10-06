@@ -2,6 +2,7 @@ from typing import Any
 
 from app.core.session_context import SessionContext
 from app.core.text_translation_result import TextTranslationResult
+from app.observability.context import bound
 from app.pipelines.pipeline import Pipeline
 from app.pipelines.pipeline_state import PipelineState
 
@@ -21,7 +22,9 @@ class TextTranslationService:
         text: str,
         target_language: str,
         source_language: str | None = None,
+        session_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        context: SessionContext | None = None,
     ) -> TextTranslationResult:
         if not isinstance(text, str) or not text.strip():
             raise ValueError(
@@ -46,10 +49,18 @@ class TextTranslationService:
             else None
         )
 
-        context = SessionContext(
-            source_language=normalized_source_language,
-            target_language=normalized_target_language,
-        )
+        if context is None:
+            context_kwargs: dict[str, Any] = {
+                "source_language": normalized_source_language,
+                "target_language": normalized_target_language,
+            }
+
+            if session_id is not None:
+                context_kwargs["session_id"] = session_id
+
+            context = SessionContext(
+                **context_kwargs
+            )
 
         state = PipelineState(
             data={
@@ -61,10 +72,16 @@ class TextTranslationService:
             }
         )
 
-        result_state = await self._pipeline.execute(
-            state=state,
-            context=context,
-        )
+        with bound(
+            session_id=context.session_id,
+            source_language=normalized_source_language,
+            target_language=normalized_target_language,
+            agent="text_translation",
+        ):
+            result_state = await self._pipeline.execute(
+                state=state,
+                context=context,
+            )
 
         return TextTranslationResult(
             source_text=normalized_text,
