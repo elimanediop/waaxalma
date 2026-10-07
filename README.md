@@ -12,7 +12,7 @@ evaluation, and speech synthesis within a modular framework.
 
 ------------------------------------------------------------------------
 
-## Stable Framework Release --- v1.0.2
+## Stable Framework Release --- v1.1.0
 
 The six readiness slices add persistent SQLite sessions with immutable
 client owners, strict X-Client-Id boundaries, typed configuration,
@@ -32,7 +32,7 @@ Backend and UI use separate dependency environments.
 Read [security boundaries](SECURITY.md), [operations and
 retention](docs/operations.md), [observability](docs/observability.md),
 [environment variables](ENVIRONMENT.md) and the [Architecture & Vision
-Book v1.0.0](docs/Architecture_Vision_Book_v1.0.0.md). Automatic
+Book v1.1.0](docs/Architecture_Vision_Book_v1.1.0.md). Automatic
 closed-session cleanup is disabled by default; its eligibility policy is
 30 days. Active sessions are never automatically deleted by this
 release.
@@ -44,7 +44,7 @@ guide](docs/extension-conformance.md), [API
 contracts](docs/api-streaming-stability.md), [supported
 runtime](docs/supported-runtime.md) and [upgrade
 guide](docs/upgrade-v0.5-to-v1.md). The English Word book is in
-`docs/book/Waaxalma_Architecture_Vision_Book_v1.0.0_EN.docx`.
+`docs/book/Waaxalma_Architecture_Vision_Book_v1.1.0_EN.docx`.
 
 ## 📊 Prometheus + Grafana observability --- v1.0.2
 
@@ -69,6 +69,38 @@ the Docker Compose environment.
   Waaxalma API   `localhost:8000`
   Prometheus     `localhost:9090`
   Grafana        `localhost:3000`
+
+## 📝 Text Translation workspace --- v1.1.0
+
+Waaxalma v1.1.0 adds a dedicated **Text** workspace alongside the existing
+**Voice** workspace. Text translation reuses the framework's Context,
+Translation and Quality capabilities without invoking speech synthesis.
+
+```text
+Streamlit Text Workspace
+        ↓
+POST /api/text/translate
+        ↓
+TextTranslationService
+        ↓
+Context → Translation → Quality
+        ↓
+Translated Text
+```
+
+-   Workspace selection is explicit: **Voice** or **Text**.
+-   Voice keeps the existing **Standard**, **Direct** and **Enhanced** modes.
+-   Text accepts source text, an optional source language and a target language.
+-   `POST /api/text/translate` preserves the existing `X-Client-Id` security
+    boundary and request correlation.
+-   The service is composed from existing Skills, stages and provider
+    abstractions rather than adding provider-specific logic to the API layer.
+-   Provider calls, latency, failures, token usage and estimated cost continue
+    through the existing observability model.
+-   Document upload, batch translation, persistent translation history and
+    custom glossaries are outside the v1.1.0 scope.
+
+------------------------------------------------------------------------
 
 ## Previous product milestone --- v0.4.4
 
@@ -111,6 +143,8 @@ The architectural principle remains unchanged:
 
 -   🎙️ Speech-to-Text
 -   🌍 Multilingual translation
+-   📝 Dedicated text translation workspace
+-   🔗 `POST /api/text/translate` text translation API
 -   🔊 Text-to-Speech
 -   🤖 Multi-agent architecture
 -   🧩 Skills-based design
@@ -268,6 +302,18 @@ contracts.
 
 Interpreter workflows are composed with `SequentialPipeline` and
 registered through `PipelineRegistry`.
+
+### Text translation service --- v1.1.0
+
+```text
+Context
+  → Translation
+  → Quality
+```
+
+`TextTranslationService` owns this speech-free execution path. It is composed
+at bootstrap from the existing Context, Translation and Quality Skills and
+providers, and is exposed through `POST /api/text/translate`.
 
 ### Text interpretation
 
