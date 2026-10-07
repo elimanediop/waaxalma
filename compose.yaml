@@ -55,7 +55,7 @@ services:
       TRANSLATION_TIMEOUT_SECONDS: ${TRANSLATION_TIMEOUT_SECONDS:-20}
       TTS_TIMEOUT_SECONDS: ${TTS_TIMEOUT_SECONDS:-30}
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+      - ${BACKEND_PORT:-8000}:8000
     volumes:
       - waaxalma-data:/var/lib/waaxalma
     init: true
@@ -76,7 +76,7 @@ services:
       CLIENT_ID: ${CLIENT_ID:-waaxalma-for-elimane}
       REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-120}
     ports:
-      - "127.0.0.1:${UI_PORT:-8501}:8501"
+      - ${UI_PORT:-8501}:8501
     depends_on:
       backend:
         condition: service_healthy
@@ -98,7 +98,7 @@ services:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - waaxalma-prometheus-data:/prometheus
     ports:
-      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+      - ${PROMETHEUS_PORT:-9090}:9090
     depends_on:
       - backend
     restart: unless-stopped
@@ -115,7 +115,7 @@ services:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+      - ${GRAFANA_PORT:-3000}:3000
     depends_on:
       - prometheus
     restart: unless-stopped

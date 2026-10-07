@@ -6,6 +6,58 @@ The project follows semantic versioning where practical.
 
 ------------------------------------------------------------------------
 
+## \[v1.1.0\] --- Text Translation Workspace --- 2026-10-07
+
+### Added
+
+-   Dedicated **Text** workspace in Streamlit alongside the existing **Voice**
+    workspace.
+-   `TextTranslationService` for speech-free translation using the existing
+    **Context → Translation → Quality** pipeline capabilities.
+-   `TextTranslationResult` value model for translated text and quality
+    metadata.
+-   `POST /api/text/translate` backed by the new text translation service while
+    preserving the existing REST response contract.
+-   Source-language selection in the Text workspace, with an unspecified
+    source language represented internally as `None`.
+-   Text translation service tests and Voice/Text Streamlit render checks.
+
+### Changed
+
+-   Streamlit settings now separate **Workspace type** (`Voice` / `Text`) from
+    Voice execution mode (`Standard` / `Direct` / `Enhanced`).
+-   The composition root now constructs the dedicated text translation service
+    from the existing provider registry and Context, Translation and Quality
+    capabilities.
+-   Text translation inherits existing request correlation, provider telemetry,
+    Prometheus metrics, token accounting and estimated-cost instrumentation.
+
+### Compatibility and scope
+
+-   Existing Voice Standard, Direct and Enhanced execution paths remain
+    available and are not replaced by the Text workspace.
+-   `X-Client-Id` remains the client-isolation boundary for the text API.
+-   Text translation does not invoke TTS.
+-   Document/PDF/DOCX translation, batch translation, persistent translation
+    history and custom glossaries are outside the v1.1.0 scope.
+-   OpenTelemetry remains optional and independent.
+
+### Verification
+
+-   Static checks passed.
+-   Streamlit Voice/Text render checks passed.
+-   Full automated test suite passed.
+-   Docker Compose build/runtime and backend health checks passed.
+-   `POST /api/text/translate` smoke test passed in the packaged environment.
+-   End-to-end translation from the Streamlit Text workspace was manually
+    validated.
+
+This release adds a new user-facing text translation capability while reusing
+the framework's existing provider, pipeline, quality, security and
+observability foundations.
+
+------------------------------------------------------------------------
+
 ## \[v1.0.2\] --- Metrics Observability --- 2026-10-06
 
 ### Added
