@@ -42,11 +42,54 @@ print('UI typed environment configuration: OK')
 from streamlit.testing.v1 import AppTest
 application = AppTest.from_file(str(root / 'streamlit_app.py'), default_timeout=20).run()
 assert not application.exception, [e.message for e in application.exception]
+
+# Voice workspace: Standard / Direct / Enhanced
+application.sidebar.radio[0].set_value('Voice').run()
+assert not application.exception, [e.message for e in application.exception]
+
 for mode in ['Direct', 'Enhanced', 'Standard']:
- application.sidebar.radio[0].set_value(mode).run()
+ application.sidebar.radio[1].set_value(mode).run()
  assert not application.exception, [e.message for e in application.exception]
-assert application.sidebar.selectbox[0].label == 'Target language'
+
+assert any(
+ selectbox.label == 'Target language'
+ for selectbox in application.sidebar.selectbox
+)
+
 for device in ['Conference output', 'Local monitor', 'Conference input', 'Microphone']:
+ application.sidebar.radio[0].set_value('Voice').run()
  application.sidebar.selectbox[-1].set_value(device).run()
  assert not application.exception, [e.message for e in application.exception]
-print('Settings panel and Standard/Direct/Enhanced workspace rendering: OK')
+
+print('Voice workspace Standard/Direct/Enhanced rendering: OK')
+
+# Text workspace — v1.1.0
+application.sidebar.radio[0].set_value('Text').run()
+assert not application.exception, [e.message for e in application.exception]
+
+sidebar_selectbox_labels = [
+ selectbox.label
+ for selectbox in application.sidebar.selectbox
+]
+assert 'Source language' in sidebar_selectbox_labels
+assert 'Target language' in sidebar_selectbox_labels
+
+text_area_labels = [
+ text_area.label
+ for text_area in application.text_area
+]
+assert 'Source text' in text_area_labels
+
+button_labels = [
+ button.label
+ for button in application.button
+]
+assert 'Translate' in button_labels
+
+assert not any(
+ radio.label == 'Voice mode'
+ for radio in application.sidebar.radio
+)
+
+print('Text translation workspace rendering: OK')
+print('Settings panel Voice/Text workspace rendering: OK')

@@ -114,6 +114,11 @@ def initialize_state() -> None:
         "request_error": None,
 
         "realtime_mode": "Direct",
+        "workspace_type": "Voice",
+        "text_source_language": "Auto",
+        "text_input": "",
+        "text_translation_result": None,
+        "text_translation_error": None,
 
     }
 
@@ -417,6 +422,38 @@ def call_voice_interpretation(
 
 
 
+def call_text_translation(
+    text: str,
+    target_language: str,
+    source_language: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"text": text, "target_language": target_language}
+    if source_language:
+        payload["source_language"] = source_language
+
+    response = requests.post(
+        f"{NORMALIZED_API_URL}/api/text/translate",
+        headers={"X-Client-Id": CLIENT_ID},
+        json=payload,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    if not response.ok:
+        raise RuntimeError(extract_api_error(response))
+    try:
+        result = response.json()
+    except ValueError as exc:
+        raise RuntimeError("The backend returned an invalid JSON response.") from exc
+
+    required_fields = {"request_id", "original_text", "translated_text"}
+    missing_fields = required_fields.difference(result)
+    if missing_fields:
+        raise RuntimeError(
+            "Incomplete backend response. Missing fields: "
+            f"{', '.join(sorted(missing_fields))}."
+        )
+    return result
+
+
 # ---------------------------------------------------------------------------
 
 # Realtime helpers
@@ -463,7 +500,7 @@ st.markdown(
 
 
 from ui.settings_panel import render_settings_panel
-workspace_mode = render_settings_panel(TARGET_LANGUAGES, [
+workspace_type, workspace_mode = render_settings_panel(TARGET_LANGUAGES, [
     ('Microphone', load_audio_input_selector, 170),
     ('Conference output', load_audio_output_selector, 170),
     ('Local monitor', load_audio_monitor_selector, 175),
@@ -479,6 +516,55 @@ st.caption(
 
 
 # ===========================================================================
+# TEXT TRANSLATION — v1.1.0
+# ===========================================================================
+
+if workspace_type == "Text":
+    st.subheader("Text Translation")
+    st.caption("Translate written text using Waaxalma's Context → Translation → Quality pipeline.")
+    source_text = st.text_area(
+        "Source text", key="text_input", height=180,
+        placeholder="Enter or paste the text you want to translate...",
+    )
+    translate_clicked = st.button(
+        "Translate", type="primary", disabled=not source_text.strip(),
+        use_container_width=True,
+    )
+    if translate_clicked:
+        st.session_state.text_translation_error = None
+        st.session_state.text_translation_result = None
+        source_language = st.session_state.get("text_source_language", "Auto")
+        if source_language == "Auto":
+            source_language = None
+        try:
+            with st.spinner("Translating..."):
+                result = call_text_translation(
+                    text=source_text, source_language=source_language,
+                    target_language=st.session_state.target_language,
+                )
+            st.session_state.text_translation_result = result
+        except requests.Timeout:
+            st.session_state.text_translation_error = "The request timed out. The service is taking too long to respond."
+        except requests.ConnectionError:
+            st.session_state.text_translation_error = "Unable to reach the Waaxalma backend. Make sure FastAPI is running."
+        except requests.RequestException as exc:
+            st.session_state.text_translation_error = f"Communication error with the backend: {exc}"
+        except RuntimeError as exc:
+            st.session_state.text_translation_error = str(exc)
+
+    if st.session_state.text_translation_error:
+        st.error(st.session_state.text_translation_error, icon="⚠️")
+    text_result = st.session_state.text_translation_result
+    if text_result:
+        st.success("Translation complete.", icon="✅")
+        st.text_area("Translation", value=text_result["translated_text"], height=180, disabled=True)
+        request_id = text_result.get("request_id")
+        if request_id:
+            with st.expander("Technical information"):
+                st.code(f"Request ID: {request_id}", language=None)
+
+
+# ===========================================================================
 
 # STANDARD MODE
 
@@ -486,7 +572,7 @@ st.caption(
 
 
 
-if workspace_mode == 'Standard':
+if workspace_type == "Voice" and workspace_mode == "Standard":
 
 
 
@@ -1086,7 +1172,7 @@ if workspace_mode == 'Standard':
 # ===========================================================================
 
 
-if workspace_mode != 'Standard':
+if workspace_type == "Voice" and workspace_mode != "Standard":
 
     st.subheader(
         "Live Translation"
@@ -1171,59 +1257,60 @@ if workspace_mode != 'Standard':
         )
 
 
-with st.expander("Experimental conferencing", expanded=False):
-    st.markdown("#### Inbound Translation")
+if workspace_type == "Voice":
+    with st.expander("Experimental conferencing", expanded=False):
+        st.markdown("#### Inbound Translation")
 
-    st.caption(
-        "Stop the diagnostic capture above before starting inbound "
-        "translation. Translated remote speech is routed only to the "
-        "selected Local Monitor device."
-    )
-
-    try:
-        conference_translation_client_html = (
-            load_conference_translation_client()
+        st.caption(
+            "Stop the diagnostic capture above before starting inbound "
+            "translation. Translated remote speech is routed only to the "
+            "selected Local Monitor device."
         )
 
-        st.iframe(
-            conference_translation_client_html,
-            height=390,
-            width="stretch",
-        )
-
-    except (
-        FileNotFoundError,
-        RuntimeError,
-    ) as exc:
-        st.warning(
-            str(exc),
-            icon="🌐",
-        )
-
-    st.markdown("### Full Duplex Conferencing")
-
-    st.caption(
-        "Start and stop outbound + inbound interpretation together. "
-        "Outbound uses the currently selected Live Translation mode."
-    )
-
-    try:
-        full_duplex_controller_html = (
-            load_full_duplex_controller(
-                st.session_state.realtime_mode
+        try:
+            conference_translation_client_html = (
+                load_conference_translation_client()
             )
+
+            st.iframe(
+                conference_translation_client_html,
+                height=390,
+                width="stretch",
+            )
+
+        except (
+            FileNotFoundError,
+            RuntimeError,
+        ) as exc:
+            st.warning(
+                str(exc),
+                icon="🌐",
+            )
+
+        st.markdown("### Full Duplex Conferencing")
+
+        st.caption(
+            "Start and stop outbound + inbound interpretation together. "
+            "Outbound uses the currently selected Live Translation mode."
         )
 
-        st.iframe(
-            full_duplex_controller_html,
-            height=145,
-            width="stretch",
-        )
+        try:
+            full_duplex_controller_html = (
+                load_full_duplex_controller(
+                    st.session_state.realtime_mode
+                )
+            )
 
-    except (FileNotFoundError, RuntimeError) as exc:
-        st.warning(
-            str(exc),
-            icon="🔁",
-        )
+            st.iframe(
+                full_duplex_controller_html,
+                height=145,
+                width="stretch",
+            )
+
+        except (FileNotFoundError, RuntimeError) as exc:
+            st.warning(
+                str(exc),
+                icon="🔁",
+            )
 
 
