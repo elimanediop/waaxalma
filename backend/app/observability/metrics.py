@@ -1,6 +1,26 @@
 from prometheus_client import Counter, Histogram
 
 
+ALLOWED_AGENTS = {
+    "interpreter",
+    "translation",
+    "context",
+    "quality",
+    "text_translation",
+}
+
+ALLOWED_OPERATIONS = {
+    "interpret",
+    "interpret_audio",
+    "translate",
+    "speak",
+    "translate_and_speak",
+    "transcribe",
+    "enrich",
+    "evaluate",
+}
+
+
 STAGE_EXECUTIONS_TOTAL = Counter(
     "waaxalma_stage_executions_total",
     "Number of Waaxalma pipeline stage executions.",
@@ -95,9 +115,9 @@ def record_stage_execution(
     normalized_provider = provider or "internal"
 
     labels = {
-        "agent": agent if agent in {"interpreter", "translation", "context", "quality"} else "other",
+        "agent": agent if agent in ALLOWED_AGENTS else "other",
         "stage": stage,
-        "operation": operation if operation in {"interpret", "interpret_audio", "translate", "speak", "translate_and_speak", "transcribe", "enrich", "evaluate"} else "other",
+        "operation": operation if operation in ALLOWED_OPERATIONS else "other",
         "provider": normalized_provider,
         "outcome": outcome,
     }
@@ -117,8 +137,8 @@ def record_agent_execution(
     duration_ms: float,
 ) -> None:
     labels = {
-        "agent": agent if agent in {"interpreter", "translation", "context", "quality"} else "other",
-        "operation": operation if operation in {"interpret", "interpret_audio", "translate", "speak", "translate_and_speak", "transcribe", "enrich", "evaluate"} else "other",
+        "agent": agent if agent in ALLOWED_AGENTS else "other",
+        "operation": operation if operation in ALLOWED_OPERATIONS else "other",
         "outcome": outcome,
     }
 
