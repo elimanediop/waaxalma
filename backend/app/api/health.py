@@ -49,7 +49,9 @@ def check_local_resources() -> None:
     for path in (settings.static_dir / "audio", settings.upload_dir):
         writable_directory(path)
     repo = session_manager.repository
-    if hasattr(repo, "database_path"):
+    if hasattr(repo, "check_readiness"):
+        repo.check_readiness()
+    elif hasattr(repo, "database_path"):
         # rw prevents accidentally creating a missing DB; transaction is rolled
         # back and persists no changes. This also tests DB write availability.
         path = Path(repo.database_path)

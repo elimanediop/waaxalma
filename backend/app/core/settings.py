@@ -67,8 +67,9 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     static_dir: Path = Path("static")
     upload_dir: Path = Path("tmp/uploads")
-    session_storage_backend: Literal["sqlite", "memory"] | None = None
+    session_storage_backend: Literal["sqlite", "memory", "postgresql"] | None = None
     session_db_path: Path | None = None
+    database_url: SecretStr | None = None
     translation_provider: Literal["openai"] = "openai"
     speech_provider: Literal["openai"] = "openai"
     speech_to_text_provider: Literal["openai"] = "openai"
@@ -125,8 +126,15 @@ class Settings(BaseSettings):
             self.openai_api_key = SecretStr("test-key-not-for-provider-calls")
         if self.session_storage_backend is None:
             self.session_storage_backend = "memory" if self.app_env == "test" else "sqlite"
-        if self.app_env == "production" and self.session_storage_backend != "sqlite":
-            raise ValueError("Production requires persistent SESSION_STORAGE_BACKEND=sqlite")
+        if self.app_env == "production" and self.session_storage_backend not in {"sqlite", "postgresql"}:
+            raise ValueError("Production requires persistent SESSION_STORAGE_BACKEND=sqlite or postgresql")
+        if self.session_storage_backend == "postgresql":
+            from urllib.parse import urlsplit
+            if self.database_url is None:
+                raise ValueError("DATABASE_URL is required for PostgreSQL")
+            parsed = urlsplit(self.database_url.get_secret_value())
+            if parsed.scheme not in {"postgresql", "postgresql+psycopg"} or not parsed.hostname or not parsed.path.strip("/"):
+                raise ValueError("DATABASE_URL must be a PostgreSQL connection URL")
         for name in ("data_dir", "static_dir", "upload_dir"):
             setattr(self, name, getattr(self, name).expanduser().resolve())
         self.session_db_path = (

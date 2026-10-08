@@ -1,0 +1,70 @@
+name: Waaxalma PostgreSQL integration
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgresql-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: waaxalma_ci
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: waaxalma_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U waaxalma_ci -d waaxalma_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_test
+      WAAXALMA_TEST_POSTGRES_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_test
+      WAAXALMA_MIGRATION_TEST_POSTGRES_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_migration_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked backend dependencies
+        run: python -m pip install --require-hashes -r backend/requirements-dev.lock
+      - name: Install PostgreSQL migration dependencies
+        run: python -m pip install 'psycopg[binary]>=3.2,<4' 'alembic>=1.14,<2' 'sqlalchemy>=2,<3'
+      - name: Check dependencies
+        run: python -m pip check
+      - name: Create isolated migration test database
+        env:
+          PGPASSWORD: ci-only-password
+        run: psql -h 127.0.0.1 -U waaxalma_ci -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE waaxalma_migration_test OWNER waaxalma_ci;'
+      - name: Upgrade integration database
+        working-directory: backend
+        run: python -m alembic -c alembic.ini upgrade head
+      - name: Assert integration database is at Alembic head
+        working-directory: backend
+        run: python -m alembic -c alembic.ini current --check-heads
+      - name: Upgrade migration test database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_migration_test
+        run: python -m alembic -c alembic.ini upgrade head
+      - name: Run PostgreSQL repository and migration tests
+        working-directory: backend
+        run: python -m pytest -q -rs tests/sessions/test_postgresql_integration.py tests/sessions/test_sqlite_pg_migration.py tests/sessions/test_sqlite_pg_migration_apply.py --junitxml=../postgresql-test-results.xml
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgresql-test-results
+          path: postgresql-test-results.xml
+          if-no-files-found: warn

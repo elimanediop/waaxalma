@@ -1,0 +1,29 @@
+# Opt-in PostgreSQL overlay: docker compose -f compose.yaml -f compose.postgres.yaml up -d --build
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: waaxalma
+      POSTGRES_USER: waaxalma
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - waaxalma-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waaxalma -d waaxalma"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.postgres
+    environment:
+      SESSION_STORAGE_BACKEND: postgresql
+      DATABASE_URL: postgresql://waaxalma:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/waaxalma
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic -c alembic.ini upgrade head && exec waaxalma-backend"]
+volumes:
+  waaxalma-postgres-data:

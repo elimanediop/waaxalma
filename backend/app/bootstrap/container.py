@@ -21,6 +21,7 @@ from app.core.config import (
     STREAMING_SPEECH_PROVIDER,
     SESSION_DB_PATH,
     SESSION_STORAGE_BACKEND,
+    DATABASE_URL,
 )
 
 from app.orchestration.agent_orchestrator import AgentOrchestrator
@@ -94,11 +95,15 @@ def build_session_manager() -> SessionManager:
             SESSION_DB_PATH
         )
 
+    elif SESSION_STORAGE_BACKEND == "postgresql":
+        from app.sessions.postgresql_session_repository import PostgreSQLSessionRepository
+        repository = PostgreSQLSessionRepository(DATABASE_URL.get_secret_value())
+
     else:
         raise RuntimeError(
             "Unsupported SESSION_STORAGE_BACKEND: "
             f"{SESSION_STORAGE_BACKEND!r}. "
-            "Expected 'sqlite' or 'memory'."
+            "Expected 'sqlite', 'postgresql' or 'memory'."
         )
 
     return SessionManager(

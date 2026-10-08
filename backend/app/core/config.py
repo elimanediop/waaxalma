@@ -28,6 +28,7 @@ STREAMING_SPEECH_VOICE = settings.streaming_speech_voice
 OPENAI_TRANSCRIPTION_MODEL = settings.openai_transcription_model
 SESSION_STORAGE_BACKEND = settings.session_storage_backend
 SESSION_DB_PATH = settings.session_db_path
+DATABASE_URL = settings.database_url
 STATIC_DIR = settings.static_dir
 UPLOAD_DIR = settings.upload_dir
 
