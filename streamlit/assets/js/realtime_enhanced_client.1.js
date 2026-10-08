@@ -52,6 +52,9 @@
     const AUDIO_INPUT_STORAGE_KEY =
         "waaxalma.audioInputDeviceId";
 
+    const CONFERENCE_INPUT_STORAGE_KEY =
+        "waaxalma.conferenceInputDeviceId";
+
     const MONITOR_OUTPUT_STORAGE_KEY =
         "waaxalma.monitorOutputDeviceId";
 
@@ -146,6 +149,8 @@
     let playbackAudioElement = null;
     let audioOutputManager = null;
     let audioInputManager = null;
+
+    let conferenceReferenceStream = null;
 
     let monitorOutputManager = null;
     let monitorAudioElement = null;
@@ -994,6 +999,79 @@
     }
 
 
+
+    async function attachConferenceReference(isolation) {
+        const conferenceDeviceId =
+            localStorage.getItem(CONFERENCE_INPUT_STORAGE_KEY) || "";
+
+        if (!conferenceDeviceId) {
+            console.info(
+                "[Waaxalma][ConferenceIsolation] No Conference Input selected; reference gating is inactive."
+            );
+            isolation.clearReferenceStream();
+            return;
+        }
+
+        const physicalDeviceId =
+            localStorage.getItem(AUDIO_INPUT_STORAGE_KEY) || "";
+
+        if (physicalDeviceId && conferenceDeviceId === physicalDeviceId) {
+            throw new Error(
+                "Conference Input must be different from the physical Waaxalma microphone."
+            );
+        }
+
+        if (conferenceReferenceStream) {
+            conferenceReferenceStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (_) {}
+            });
+            conferenceReferenceStream = null;
+        }
+
+        conferenceReferenceStream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    deviceId: { exact: conferenceDeviceId },
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                },
+            });
+
+        await isolation.setReferenceStream(conferenceReferenceStream);
+
+        console.info(
+            "[Waaxalma][ConferenceIsolation] Conference reference attached",
+            {
+                label: conferenceReferenceStream.getAudioTracks()[0]?.label || "",
+                deviceId:
+                    conferenceReferenceStream.getAudioTracks()[0]
+                        ?.getSettings()?.deviceId || "",
+            }
+        );
+    }
+
+    async function releaseConferenceReference({ stopIsolation = false } = {}) {
+        const isolation =
+            window.WaaxalmaConferenceAudioIsolationInstance;
+
+        if (isolation) {
+            if (stopIsolation) {
+                await isolation.stop();
+            } else {
+                isolation.clearReferenceStream();
+            }
+        }
+
+        if (conferenceReferenceStream) {
+            conferenceReferenceStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (_) {}
+            });
+            conferenceReferenceStream = null;
+        }
+    }
+
+
     // ------------------------------------------------------------
     // OpenAI transcription WebRTC
     // ------------------------------------------------------------
@@ -1007,9 +1085,24 @@
         const inputManager =
             await ensureAudioInputManager();
 
-        microphoneStream =
+        const rawMicrophoneStream =
             await inputManager
                 .acquireStream();
+
+        const isolation =
+            window.WaaxalmaConferenceAudioIsolationInstance;
+
+        if (!isolation) {
+            throw new Error(
+                "WaaxalmaConferenceAudioIsolation is not available. "
+                + "Load conference_audio_isolation.js before realtime_enhanced_client.js."
+            );
+        }
+
+        await attachConferenceReference(isolation);
+
+        microphoneStream =
+            await isolation.process(rawMicrophoneStream);
 
         const audioTrack =
             microphoneStream
@@ -2529,6 +2622,18 @@
 
         peerConnection =
             null;
+
+        try {
+            await releaseConferenceReference({
+                stopIsolation: true,
+            });
+        }
+        catch (error) {
+            console.warn(
+                "[Waaxalma][ConferenceIsolation] cleanup failed",
+                error
+            );
+        }
 
         if (microphoneStream) {
             for (

@@ -12,7 +12,7 @@ evaluation, and speech synthesis within a modular framework.
 
 ------------------------------------------------------------------------
 
-## Stable Framework Release --- v1.1.0
+## Stable Framework Release --- v1.1.1
 
 The six readiness slices add persistent SQLite sessions with immutable
 client owners, strict X-Client-Id boundaries, typed configuration,
@@ -45,6 +45,21 @@ contracts](docs/api-streaming-stability.md), [supported
 runtime](docs/supported-runtime.md) and [upgrade
 guide](docs/upgrade-v0.5-to-v1.md). The English Word book is in
 `docs/book/Waaxalma_Architecture_Vision_Book_v1.1.0_EN.docx`.
+
+## Conference audio isolation and monitoring — v1.1.1
+
+Waaxalma supports an independent **Conference Monitor** in Audio devices, alongside the existing translated-audio Local Monitor. For the validated two-cable Windows/Teams setup:
+
+| Component | Device |
+| --- | --- |
+| Teams Speaker | CABLE-A Input |
+| Waaxalma Conference Input | CABLE-A Output |
+| Waaxalma Conference Monitor | Enabled; output = physical headphones/headset |
+| Waaxalma microphone | Physical microphone |
+| Waaxalma Conference Output | CABLE-B Input |
+| Teams Microphone | CABLE-B Output |
+
+Disable Windows **Listen to this device** on CABLE-A Output when the Waaxalma Conference Monitor is enabled to prevent duplicate playback. The Conference Monitor is separate from the translated-audio Local Monitor and Full Duplex Start/Stop. The reference-aware `ConferenceAudioIsolation` layer is used by Direct and Enhanced. **Reference-VAD gating is not acoustic echo cancellation** and can attenuate local speech during simultaneous remote/local speech; test double-talk before deploying more broadly. Without a valid reference, isolation cannot suppress remote audio leaking into the physical microphone. See [conference audio operations](docs/conference-audio-v1.1.1.md).
 
 ## 📊 Prometheus + Grafana observability --- v1.0.2
 
