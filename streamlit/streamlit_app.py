@@ -86,6 +86,7 @@ from ui.assets import (
     load_audio_monitor_selector,
     load_conference_input_manager,
     load_conference_input_selector,
+    load_conference_monitor_selector,
     load_conference_translation_client,
     load_full_duplex_controller,
     load_standard_audio_player,
@@ -505,6 +506,7 @@ workspace_type, workspace_mode = render_settings_panel(TARGET_LANGUAGES, [
     ('Conference output', load_audio_output_selector, 170),
     ('Local monitor', load_audio_monitor_selector, 175),
     ('Conference input', load_conference_input_selector, 210),
+    ('Conference monitor', load_conference_monitor_selector, 190),
 ])
 
 st.markdown("### Workspace")

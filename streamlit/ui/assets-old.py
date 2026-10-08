@@ -48,16 +48,8 @@ AUDIO_MONITOR_SELECTOR_FILE = (
     STREAMLIT_DIR / "assets/html/audio_monitor_selector.html"
 )
 
-CONFERENCE_MONITOR_SELECTOR_FILE = (
-    STREAMLIT_DIR / "assets/html/conference_monitor_selector.html"
-)
-
 CONFERENCE_INPUT_MANAGER_FILE = (
     STREAMLIT_DIR / "assets/js/conference_input_manager.js"
-)
-
-CONFERENCE_AUDIO_ISOLATION_FILE = (
-    STREAMLIT_DIR / "assets/js/conference_audio_isolation.js"
 )
 
 CONFERENCE_INPUT_SELECTOR_FILE = (
@@ -230,31 +222,6 @@ def load_audio_monitor_selector() -> str:
         manager_script,
         1,
     )
-
-
-def load_conference_monitor_selector() -> str:
-    """Load the independent Conference Monitor."""
-    if not CONFERENCE_MONITOR_SELECTOR_FILE.exists():
-        raise FileNotFoundError("Conference monitor selector not found: " + str(CONFERENCE_MONITOR_SELECTOR_FILE))
-    html = load_template(CONFERENCE_MONITOR_SELECTOR_FILE)
-    input_placeholder = "__CONFERENCE_INPUT_MANAGER_SCRIPT__"
-    output_placeholder = "__AUDIO_OUTPUT_MANAGER_SCRIPT__"
-    if input_placeholder not in html or output_placeholder not in html:
-        raise RuntimeError("Conference monitor selector is missing manager script placeholders.")
-    html = html.replace(input_placeholder, "<script>\n" + load_conference_input_manager() + "\n</script>", 1)
-    html = html.replace(output_placeholder, "<script>\n" + load_audio_output_manager() + "\n</script>", 1)
-    return html
-
-
-def load_conference_audio_isolation() -> str:
-    """Load the shared conferencing audio-isolation layer."""
-    if not CONFERENCE_AUDIO_ISOLATION_FILE.exists():
-        raise FileNotFoundError(
-            "Conference audio isolation not found: "
-            f"{CONFERENCE_AUDIO_ISOLATION_FILE}"
-        )
-
-    return CONFERENCE_AUDIO_ISOLATION_FILE.read_text(encoding='utf-8')
 
 
 def load_conference_input_manager() -> str:
@@ -484,10 +451,6 @@ def load_realtime_client(
         load_audio_input_manager()
     )
 
-    conference_audio_isolation_js = (
-        load_conference_audio_isolation()
-    )
-
     audio_output_manager_js = (
         load_audio_output_manager()
     )
@@ -495,9 +458,6 @@ def load_realtime_client(
     manager_script = (
         "<script>\n"
         + audio_input_manager_js
-        + "\n</script>\n"
-        + "<script>\n"
-        + conference_audio_isolation_js
         + "\n</script>\n"
         + "<script>\n"
         + audio_output_manager_js

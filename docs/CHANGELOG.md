@@ -6,6 +6,20 @@ The project follows semantic versioning where practical.
 
 ------------------------------------------------------------------------
 
+## [v1.1.1] — Conference audio isolation and monitoring — 2026-10-08
+
+### Added
+- Independent Conference Monitor to play selected Conference Input through a local headset.
+- Dedicated monitor enable/output-device preferences in Streamlit.
+- Reference-aware audio isolation for Direct and Enhanced using a separately selected Conference Input.
+- Documented Windows/Teams dual-cable (CABLE-A inbound / CABLE-B outbound) setup and validation checklist.
+
+### Behavior and limitations
+- Conference Monitor does not depend on Full Duplex or inbound translation Start/Stop.
+- Conference Monitor and translated-audio Local Monitor are separate features.
+- The current reference-VAD gate is **not** a full acoustic echo canceller; simultaneous speakers and missing/invalid references require further testing.
+- Manual acceptance reported for Teams playback and no remote retranslation in Direct and Enhanced with the A/B setup. Automated CI and Docker smoke tests must still run on the full repository before tagging.
+
 ## \[v1.1.0\] --- Text Translation Workspace --- 2026-10-07
 
 ### Added

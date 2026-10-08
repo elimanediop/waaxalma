@@ -79,6 +79,9 @@
     const AUDIO_INPUT_STORAGE_KEY =
         "waaxalma.audioInputDeviceId";
 
+    const CONFERENCE_INPUT_STORAGE_KEY =
+        "waaxalma.conferenceInputDeviceId";
+
     const MONITOR_OUTPUT_STORAGE_KEY =
         "waaxalma.monitorOutputDeviceId";
 
@@ -132,6 +135,8 @@
 
     let audioInputManager =
         null;
+
+    let conferenceReferenceStream = null;
 
     let monitorOutputManager =
         null;
@@ -3370,6 +3375,79 @@ recordMetric(
     }
 
 
+
+    async function attachConferenceReference(isolation) {
+        const conferenceDeviceId =
+            localStorage.getItem(CONFERENCE_INPUT_STORAGE_KEY) || "";
+
+        if (!conferenceDeviceId) {
+            console.info(
+                "[Waaxalma][ConferenceIsolation] No Conference Input selected; reference gating is inactive."
+            );
+            isolation.clearReferenceStream();
+            return;
+        }
+
+        const physicalDeviceId =
+            localStorage.getItem(AUDIO_INPUT_STORAGE_KEY) || "";
+
+        if (physicalDeviceId && conferenceDeviceId === physicalDeviceId) {
+            throw new Error(
+                "Conference Input must be different from the physical Waaxalma microphone."
+            );
+        }
+
+        if (conferenceReferenceStream) {
+            conferenceReferenceStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (_) {}
+            });
+            conferenceReferenceStream = null;
+        }
+
+        conferenceReferenceStream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    deviceId: { exact: conferenceDeviceId },
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                },
+            });
+
+        await isolation.setReferenceStream(conferenceReferenceStream);
+
+        console.info(
+            "[Waaxalma][ConferenceIsolation] Conference reference attached",
+            {
+                label: conferenceReferenceStream.getAudioTracks()[0]?.label || "",
+                deviceId:
+                    conferenceReferenceStream.getAudioTracks()[0]
+                        ?.getSettings()?.deviceId || "",
+            }
+        );
+    }
+
+    async function releaseConferenceReference({ stopIsolation = false } = {}) {
+        const isolation =
+            window.WaaxalmaConferenceAudioIsolationInstance;
+
+        if (isolation) {
+            if (stopIsolation) {
+                await isolation.stop();
+            } else {
+                isolation.clearReferenceStream();
+            }
+        }
+
+        if (conferenceReferenceStream) {
+            conferenceReferenceStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (_) {}
+            });
+            conferenceReferenceStream = null;
+        }
+    }
+
+
     /* ==================================================== */
 
     /* Microphone                                           */
@@ -3478,9 +3556,245 @@ recordMetric(
             await ensureAudioInputManager();
 
 
-        sourceStream =
+        const rawSourceStream =
             await inputManager
                 .acquireStream();
+
+        const isolation =
+            window.WaaxalmaConferenceAudioIsolationInstance;
+
+        if (!isolation) {
+            throw new Error(
+                "WaaxalmaConferenceAudioIsolation is not available. "
+                + "Load conference_audio_isolation.js before realtime_client.js."
+            );
+        }
+
+        await attachConferenceReference(isolation);
+
+        sourceStream =
+            await isolation.process(rawSourceStream);
+
+        /*
+         * Conferencing hotfix diagnostics:
+         * prove which browser input track was actually acquired.
+         */
+        const acquiredAudioTrack =
+            sourceStream
+                .getAudioTracks()[0];
+
+        
+        // Hotfix diagnostic v1.1.1: capture the isolated outbound sourceStream
+        // before it is attached to WebRTC. This intentionally excludes the
+        // provider remote stream and conference output path.
+        window.WaaxalmaDirectIsolatedMicCapture = {
+            async record(durationMs = 10000) {
+                if (
+                    !sourceStream ||
+                    sourceStream.getAudioTracks().length === 0
+                ) {
+                    throw new Error(
+                        "Direct microphone sourceStream is not available. Start Direct mode first."
+                    );
+                }
+
+                const sourceTrack =
+                    sourceStream.getAudioTracks()[0];
+
+                if (
+                    !sourceTrack ||
+                    sourceTrack.readyState !== "live"
+                ) {
+                    throw new Error(
+                        "Direct microphone track is not live."
+                    );
+                }
+
+                const rawMicStream =
+                    new MediaStream([sourceTrack]);
+
+                const preferredMimeTypes = [
+                    "audio/webm;codecs=opus",
+                    "audio/webm",
+                    "audio/ogg;codecs=opus",
+                ];
+
+                const mimeType =
+                    preferredMimeTypes.find(
+                        candidate =>
+                            window.MediaRecorder &&
+                            MediaRecorder.isTypeSupported(candidate)
+                    ) || "";
+
+                const recorder =
+                    mimeType
+                        ? new MediaRecorder(
+                              rawMicStream,
+                              { mimeType }
+                          )
+                        : new MediaRecorder(
+                              rawMicStream
+                          );
+
+                const chunks = [];
+
+                recorder.addEventListener(
+                    "dataavailable",
+                    event => {
+                        if (
+                            event.data &&
+                            event.data.size > 0
+                        ) {
+                            chunks.push(
+                                event.data
+                            );
+                        }
+                    }
+                );
+
+                const stopped =
+                    new Promise(
+                        (resolve, reject) => {
+                            recorder.addEventListener(
+                                "stop",
+                                resolve,
+                                { once: true }
+                            );
+                            recorder.addEventListener(
+                                "error",
+                                event =>
+                                    reject(
+                                        event.error ||
+                                        new Error(
+                                            "Raw microphone recording failed."
+                                        )
+                                    ),
+                                { once: true }
+                            );
+                        }
+                    );
+
+                console.info(
+                    "[Waaxalma][Direct][ISOLATED MIC] recording started",
+                    {
+                        durationMs,
+                        label:
+                            sourceTrack.label,
+                        id:
+                            sourceTrack.id,
+                        settings:
+                            sourceTrack.getSettings?.(),
+                    }
+                );
+
+                recorder.start();
+
+                await new Promise(
+                    resolve =>
+                        window.setTimeout(
+                            resolve,
+                            durationMs
+                        )
+                );
+
+                if (
+                    recorder.state !==
+                    "inactive"
+                ) {
+                    recorder.stop();
+                }
+
+                await stopped;
+
+                const blob =
+                    new Blob(
+                        chunks,
+                        {
+                            type:
+                                recorder.mimeType ||
+                                mimeType ||
+                                "audio/webm",
+                        }
+                    );
+
+                const extension =
+                    blob.type.includes("ogg")
+                        ? "ogg"
+                        : "webm";
+
+                const url =
+                    URL.createObjectURL(
+                        blob
+                    );
+
+                const audio =
+                    new Audio(url);
+                audio.controls = true;
+
+                console.info(
+                    "[Waaxalma][Direct][ISOLATED MIC] recording complete",
+                    {
+                        bytes:
+                            blob.size,
+                        type:
+                            blob.type,
+                        trackLabel:
+                            sourceTrack.label,
+                        trackId:
+                            sourceTrack.id,
+                        playback:
+                            audio,
+                        blobUrl:
+                            url,
+                    }
+                );
+
+                return {
+                    blob,
+                    url,
+                    audio,
+                    trackLabel:
+                        sourceTrack.label,
+                    trackId:
+                        sourceTrack.id,
+                    settings:
+                        sourceTrack.getSettings?.(),
+                };
+            },
+        };
+
+console.info(
+            "[Waaxalma][Direct] acquired input",
+            {
+                selectedDeviceId:
+                    inputManager
+                        .selectedDeviceId,
+
+                label:
+                    acquiredAudioTrack
+                        ?.label,
+
+                id:
+                    acquiredAudioTrack
+                        ?.id,
+
+                enabled:
+                    acquiredAudioTrack
+                        ?.enabled,
+
+                muted:
+                    acquiredAudioTrack
+                        ?.muted,
+
+                readyState:
+                    acquiredAudioTrack
+                        ?.readyState,
+
+                settings:
+                    acquiredAudioTrack
+                        ?.getSettings?.(),
+            }
+        );
 
 
 
@@ -3746,6 +4060,19 @@ if (
         }
 
 
+
+
+
+        if (stopMicrophone) {
+            releaseConferenceReference({
+                stopIsolation: true,
+            }).catch(error => {
+                console.warn(
+                    "[Waaxalma][ConferenceIsolation] cleanup failed",
+                    error
+                );
+            });
+        }
 
 
 
@@ -4235,6 +4562,61 @@ if (
 
             sourceStream
 
+        );
+
+
+        /*
+         * Conferencing hotfix diagnostics:
+         * verify that the RTCPeerConnection sender uses the
+         * same track that was acquired from AudioInputManager.
+         */
+        const audioSender =
+            peerConnection
+                .getSenders()
+                .find(
+                    sender =>
+                        sender.track?.kind ===
+                        "audio"
+                );
+
+        console.info(
+            "[Waaxalma][Direct] WebRTC sender",
+            {
+                label:
+                    audioSender
+                        ?.track
+                        ?.label,
+
+                id:
+                    audioSender
+                        ?.track
+                        ?.id,
+
+                enabled:
+                    audioSender
+                        ?.track
+                        ?.enabled,
+
+                muted:
+                    audioSender
+                        ?.track
+                        ?.muted,
+
+                readyState:
+                    audioSender
+                        ?.track
+                        ?.readyState,
+
+                settings:
+                    audioSender
+                        ?.track
+                        ?.getSettings?.(),
+
+                sameTrack:
+                    audioSender
+                        ?.track ===
+                    audioTrack,
+            }
         );
 
 

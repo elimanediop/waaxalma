@@ -235,6 +235,20 @@ class WaaxalmaAudioInputManager {
                 exact:
                     this._deviceId,
             },
+
+            /*
+             * Conferencing hotfix diagnostics:
+             * explicitly request browser-side acoustic echo cancellation
+             * and speech cleanup for the selected physical microphone.
+             */
+            echoCancellation:
+                true,
+
+            noiseSuppression:
+                true,
+
+            autoGainControl:
+                true,
         };
     }
 
