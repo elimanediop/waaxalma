@@ -44,6 +44,12 @@ class InMemorySessionRepository(SessionRepository):
             self._sessions[session.session_id] = deepcopy(session)
             return deepcopy(session)
 
+    def list_by_owner(self, owner_id: str, *, limit: int = 50, offset: int = 0) -> list[ConversationSession]:
+        with self._lock:
+            owned = [s for s in self._sessions.values() if s.owner_id == owner_id]
+            owned.sort(key=lambda s: (s.created_at, s.session_id), reverse=True)
+            return deepcopy(owned[offset:offset + limit])
+
     def get(
         self,
         session_id: str,

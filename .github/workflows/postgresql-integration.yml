@@ -30,6 +30,7 @@ jobs:
     env:
       APP_ENV: test
       DATABASE_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_test
+      WAAXALMA_AUTH_TEST_POSTGRES_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_test
       WAAXALMA_TEST_POSTGRES_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_test
       WAAXALMA_MIGRATION_TEST_POSTGRES_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_migration_test
     steps:
@@ -58,9 +59,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://waaxalma_ci:ci-only-password@127.0.0.1:5432/waaxalma_migration_test
         run: python -m alembic -c alembic.ini upgrade head
+      - name: Verify authenticated session lifecycle
+        working-directory: backend
+        run: python -m pytest -q tests/security/test_authenticated_session_lifecycle.py
       - name: Run PostgreSQL repository and migration tests
         working-directory: backend
-        run: python -m pytest -q -rs tests/sessions/test_postgresql_integration.py tests/sessions/test_sqlite_pg_migration.py tests/sessions/test_sqlite_pg_migration_apply.py --junitxml=../postgresql-test-results.xml
+        run: python -m pytest -q -rs tests/sessions/test_postgresql_integration.py tests/sessions/test_sqlite_pg_migration.py tests/sessions/test_sqlite_pg_migration_apply.py tests/security/test_postgres_auth_integration.py --junitxml=../postgresql-test-results.xml
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4

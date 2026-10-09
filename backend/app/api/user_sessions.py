@@ -1,7 +1,7 @@
 """Opt-in authenticated translation sessions, isolated from legacy client sessions."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 
 from app.api.auth import require_enabled, require_session, require_origin
 from app.identity import auth_service as auth
@@ -36,6 +36,33 @@ def owned(session_id: str, owner: str, *, active: bool = False):
     if active and not session.is_active:
         raise HTTPException(409, detail="Session is closed")
     return session
+
+
+@router.get("")
+async def list_sessions(
+    owner: str = Depends(current_owner),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    sessions = session_manager.list_sessions_by_owner(owner, limit=limit, offset=offset)
+    return {
+        "items": [
+            {
+                "session_id": s.session_id,
+                "agent_name": s.agent_name,
+                "execution_mode": s.execution_mode,
+                "source_language": s.source_language,
+                "target_language": s.target_language,
+                "status": s.status,
+                "created_at": s.created_at.isoformat(),
+                "updated_at": s.updated_at.isoformat(),
+            }
+            for s in sessions
+        ],
+        "limit": limit,
+        "offset": offset,
+        "has_more": len(sessions) == limit,
+    }
 
 
 @router.post("", status_code=201)

@@ -160,6 +160,16 @@ class SQLiteSessionRepository(SessionRepository):
         assert persisted is not None
         return persisted
 
+    def list_by_owner(self, owner_id: str, *, limit: int = 50, offset: int = 0) -> list[ConversationSession]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT session_id FROM sessions WHERE owner_id = ?
+                   ORDER BY created_at DESC, session_id DESC LIMIT ? OFFSET ?""",
+                (owner_id, limit, offset),
+            ).fetchall()
+            ids = [row["session_id"] for row in rows]
+        return [session for sid in ids if (session := self.get(sid)) is not None]
+
     def get(
         self,
         session_id: str,

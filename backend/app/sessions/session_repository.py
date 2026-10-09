@@ -17,6 +17,11 @@ class SessionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_by_owner(self, owner_id: str, *, limit: int = 50, offset: int = 0) -> list[ConversationSession]:
+        """List only sessions owned by the authenticated user."""
+        raise NotImplementedError
+
+    @abstractmethod
     def get(
         self,
         session_id: str,

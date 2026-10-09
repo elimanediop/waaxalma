@@ -47,6 +47,18 @@ class PostgreSQLSessionRepository(SessionRepository):
             raise ValueError(f"Session '{session.session_id}' already exists.") from exc
         return self.get(session.session_id)
 
+    def list_by_owner(self, owner_id: str, *, limit: int = 50, offset: int = 0) -> list[ConversationSession]:
+        with self._connect() as db, db.cursor() as cur:
+            cur.execute(
+                """SELECT session_id FROM translation_sessions
+                   WHERE owner_id = %s
+                   ORDER BY created_at DESC, session_id DESC
+                   LIMIT %s OFFSET %s""",
+                (owner_id, limit, offset),
+            )
+            ids = [row["session_id"] for row in cur.fetchall()]
+        return [session for sid in ids if (session := self.get(sid)) is not None]
+
     def get(self, session_id: str) -> ConversationSession | None:
         with self._connect() as db, db.cursor() as cur:
             cur.execute("SELECT * FROM translation_sessions WHERE session_id=%s", (session_id,))

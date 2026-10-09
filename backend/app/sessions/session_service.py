@@ -48,6 +48,13 @@ class SessionService:
         self._record_lifecycle(persisted, "created")
         return persisted
 
+    def list_sessions_by_owner(self, owner_id: str, *, limit: int = 50, offset: int = 0) -> list[ConversationSession]:
+        if not owner_id.startswith("user:"):
+            raise ValueError("Authenticated owner required")
+        if not 1 <= limit <= 100 or offset < 0:
+            raise ValueError("Invalid pagination")
+        return self.repository.list_by_owner(owner_id, limit=limit, offset=offset)
+
     def get_session(
         self,
         session_id: str,
