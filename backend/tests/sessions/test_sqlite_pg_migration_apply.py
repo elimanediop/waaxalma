@@ -1,19 +1,47 @@
-"""End-to-end SQLite v2 -> PostgreSQL import using a dedicated, disposable database."""
+"""End-to-end SQLite v2 -> PostgreSQL import on a disposable test database.
+
+WARNING: The fixture clears translation data in the dedicated migration test DB.
+Never point WAAXALMA_MIGRATION_TEST_POSTGRES_URL at an application database.
+"""
 import os
 
 import pytest
 
-pytest.importorskip('psycopg')
+psycopg = pytest.importorskip('psycopg')
+from psycopg.conninfo import conninfo_to_dict
+
 from app.sessions.session_models import ConversationSession
 from app.sessions.sqlite_session_repository import SQLiteSessionRepository
 from app.sessions.postgresql_session_repository import PostgreSQLSessionRepository
 from scripts.migrate_sqlite_to_postgres import migrate
 
 
-def test_migration_apply_preserves_sessions_and_order(tmp_path):
+@pytest.fixture
+def empty_migration_database():
     url = os.getenv('WAAXALMA_MIGRATION_TEST_POSTGRES_URL')
     if not url:
-        pytest.skip('Requires WAAXALMA_MIGRATION_TEST_POSTGRES_URL (disposable, empty, Alembic-upgraded database)')
+        pytest.skip('Requires WAAXALMA_MIGRATION_TEST_POSTGRES_URL')
+
+    normalized = url.replace('postgresql+psycopg://', 'postgresql://', 1)
+    params = conninfo_to_dict(normalized)
+    # Explicit guard: never truncate a general-purpose or production database.
+    if params.get('dbname') != 'waaxalma_migration_test' or params.get('host') not in ('localhost', '127.0.0.1', '::1', 'postgres'):
+        pytest.fail('Refusing destructive test cleanup: expected dedicated waaxalma_migration_test on local/CI PostgreSQL')
+
+    def clear():
+        with psycopg.connect(normalized, connect_timeout=5) as db:
+            with db.cursor() as cur:
+                cur.execute('TRUNCATE TABLE translation_messages, translation_sessions RESTART IDENTITY')
+
+    clear()
+    try:
+        yield normalized
+    finally:
+        clear()
+
+
+def test_migration_apply_preserves_sessions_and_order(tmp_path, empty_migration_database):
+    url = empty_migration_database
     source = tmp_path / 'source.sqlite3'
     sqlite = SQLiteSessionRepository(source)
     session = ConversationSession.create('interpreter', owner_id='legacy-client', metadata={'nested': {'value': 7}})
