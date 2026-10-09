@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:sessions": "node --test tests/sessions-contract.test.mjs"
+    "test:sessions": "node --test tests/sessions-contract.test.mjs",
+    "test:translation": "node --test tests/translation-contract.test.mjs",
+    "test:contracts": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

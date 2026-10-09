@@ -27,6 +27,7 @@ from app.core.config import STATIC_DIR
 
 from app.api.auth import router as auth_router
 from app.api.user_sessions import router as user_sessions_router
+from app.api.user_translation import router as user_translation_router
 from app.api.user_realtime import router as user_realtime_router 
 
 @asynccontextmanager
@@ -77,6 +78,7 @@ app.include_router(voice_router)
 app.include_router(realtime_router)
 app.include_router(auth_router)
 app.include_router(user_sessions_router)
+app.include_router(user_translation_router)
 app.include_router(user_realtime_router)
 
 app.add_exception_handler(

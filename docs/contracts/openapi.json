@@ -79,6 +79,47 @@
         "title": "AgentListResponse",
         "type": "object"
       },
+      "AuthenticatedTranslateTextRequest": {
+        "properties": {
+          "session_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          },
+          "source_language": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Language"
+          },
+          "target_language": {
+            "maxLength": 64,
+            "minLength": 2,
+            "title": "Target Language",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "text",
+          "target_language"
+        ],
+        "title": "AuthenticatedTranslateTextRequest",
+        "type": "object"
+      },
       "Body_interpret_voice_api_voice_interpret_post": {
         "properties": {
           "file": {
@@ -3342,6 +3383,47 @@
         "summary": "Close",
         "tags": [
           "authenticated-sessions"
+        ]
+      }
+    },
+    "/api/user/translate/text": {
+      "post": {
+        "operationId": "translate_text_api_user_translate_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticatedTranslateTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslateTextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Translate Text",
+        "tags": [
+          "authenticated-translation"
         ]
       }
     },

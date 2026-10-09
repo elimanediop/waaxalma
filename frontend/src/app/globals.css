@@ -28,3 +28,26 @@
 .session-management-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:20px}
 .sessions-danger{border:1px solid #e7b6bd;border-radius:9px;background:#fff1f2;color:#a62b40;padding:11px 15px;font-weight:700}
 .sessions-danger:disabled{opacity:.5}
+
+/* Slice 4.4.1 — Translation UI (no backend execution) */
+.translate-stage-label{font-size:12px;color:#477c79;background:#e8f6f3;border:1px solid #cce9e3;border-radius:30px;padding:10px 14px}
+.translate-workspace{background:#fff;border:1px solid var(--border);border-radius:15px;overflow:hidden}
+.translate-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:22px 25px;border-bottom:1px solid var(--border)}
+.translate-toolbar label{font-size:12px;font-weight:800;color:#617383}
+.translate-toolbar select{min-width:150px;border:1px solid #dce3e9;border-radius:9px;padding:11px 13px;background:white;color:#172b40}
+.translate-swap{border:1px solid #dce3e9;border-radius:9px;background:white;display:grid;place-items:center;width:43px;height:43px;color:#14877d}
+.translate-swap:disabled{opacity:.35;cursor:not-allowed}
+.translate-columns{display:grid;grid-template-columns:1fr 1fr}
+.translate-panel{display:flex;flex-direction:column;min-width:0;min-height:355px;padding:24px}
+.translate-panel+.translate-panel{border-left:1px solid var(--border)}
+.translate-result{background:#f8fafb}
+.translate-panel-label{font-size:12px;font-weight:800;color:#536678;margin-bottom:15px}
+.translate-panel textarea{flex:1;min-height:225px;width:100%;resize:vertical;border:0;outline:0;font:400 16px/1.7 Arial,sans-serif;color:#1c3349;background:transparent}
+.translate-output{flex:1;white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.7}
+.translate-placeholder{color:#8797a6}
+.translate-panel-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:15px;font-size:12px;color:#8192a0}
+.translate-text-button{border:0;background:transparent;display:inline-flex;align-items:center;gap:7px;color:#147f78;font-weight:700;cursor:pointer}
+.translate-text-button:disabled{opacity:.4;cursor:not-allowed}
+.translate-actions{padding:20px 25px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid var(--border)}
+.translate-actions p{font-size:12px;color:#718492}
+@media(max-width:800px){.translate-columns{grid-template-columns:1fr}.translate-panel+.translate-panel{border-left:0;border-top:1px solid var(--border)}.translate-actions{flex-direction:column;align-items:stretch}.translate-toolbar select{min-width:110px;flex:1}.translate-stage-label{display:none}}

@@ -159,7 +159,7 @@ export default function SessionsPage() {
       <div className="sidebar-label">WORKSPACE</div>
       <nav aria-label="Main navigation">
         <Link href="/dashboard"><LayoutDashboard size={18}/> Dashboard</Link>
-        <span className="nav-disabled"><Languages size={18}/> Translate <small>Soon</small></span>
+        <a href="/translate"><Languages size={18}/> Translate</a>
         <span className="nav-disabled"><Mic2 size={18}/> Interpreter <small>Soon</small></span>
         <Link className="nav-active" href="/sessions" aria-current="page"><History size={18}/> My Sessions</Link>
       </nav>
@@ -171,7 +171,7 @@ export default function SessionsPage() {
     <main className="main-panel">
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>My Sessions</strong></div><div className="profile"><span className="avatar"><UserRound size={17}/></span><span>{auth.user.email}</span></div></header>
       <div className="dashboard-content">
-        <div className="welcome"><div><span className="eyebrow">TRANSLATION WORKSPACE</span><h1>My Sessions<span className="period">.</span></h1><p>Browse your private translation sessions.</p></div><button className="sessions-refresh" onClick={load} disabled={busy}><RefreshCw size={16}/> Refresh</button><button className="primary" onClick={openCreate}>New Session</button></div>
+        <div className="welcome"><div><span className="eyebrow">SESSION WORKSPACE</span><h1>My Sessions<span className="period">.</span></h1><p>Manage your translation and interpretation sessions.</p></div><button className="sessions-refresh" onClick={load} disabled={busy}><RefreshCw size={16}/> Refresh</button><button className="primary" onClick={openCreate}>New Session</button></div>
         {error && <div className="sessions-notice" role="alert"><p>{error}</p><button className="primary" onClick={load}>Try again</button></div>}
         {!error && busy && <p role="status" className="muted">Loading sessions…</p>}
         {!error && !busy && items.length === 0 && <section className="sessions-empty"><History size={34}/><h2>No sessions found</h2><p>Sessions created from your account will appear here.</p></section>}
